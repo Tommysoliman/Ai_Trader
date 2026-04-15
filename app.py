@@ -76,6 +76,9 @@ with st.sidebar:
     )
     
     st.divider()
+    run_button = st.button("🚀 Run Analysis", use_container_width=True, key="run_analysis_btn")
+    st.divider()
+    
     st.subheader("📊 Settings")
     
     use_leverage = st.checkbox("Use CFD Leverage", value=True)
@@ -91,8 +94,6 @@ with st.sidebar:
     st.subheader("🔌 API Configuration")
     
     api_key = st.text_input("OpenAI API Key (Optional)", type="password", placeholder="sk-...")
-    
-    run_button = st.button("Run Analysis", use_container_width=True)
     
     if run_button:
         # Store analysis parameters in session state
@@ -118,27 +119,46 @@ def get_recommendations_for_sectors(sectors, leverage):
         "Technology": [
             {"ticker": "TSLA", "price": 242.50, "entry": 242.50, "stop": 259.50, "targets": [212.50, 185.00], "signal": "Death Cross"},
             {"ticker": "META", "price": 198.75, "entry": 198.50, "stop": 215.30, "targets": [175.40, 152.80], "signal": "Failed Recovery"},
-            {"ticker": "NVDA", "price": 880.00, "entry": 875.00, "stop": 950.00, "targets": [750.00, 600.00], "signal": "Valuation Extreme"}
+            {"ticker": "NVDA", "price": 880.00, "entry": 875.00, "stop": 950.00, "targets": [750.00, 600.00], "signal": "Valuation Extreme"},
+            {"ticker": "AAPL", "price": 175.25, "entry": 175.00, "stop": 187.50, "targets": [160.00, 145.00], "signal": "Trend Weakness"},
+            {"ticker": "MSFT", "price": 420.50, "entry": 420.00, "stop": 451.50, "targets": [385.00, 350.00], "signal": "Consolidation"}
         ],
         "Finance": [
             {"ticker": "JPM", "price": 195.00, "entry": 194.50, "stop": 208.00, "targets": [175.00, 155.00], "signal": "Rate Vulnerability"},
-            {"ticker": "GS", "price": 375.00, "entry": 374.00, "stop": 402.00, "targets": [340.00, 310.00], "signal": "Trading Weakness"}
+            {"ticker": "GS", "price": 375.00, "entry": 374.00, "stop": 402.00, "targets": [340.00, 310.00], "signal": "Trading Weakness"},
+            {"ticker": "BAC", "price": 32.50, "entry": 32.25, "stop": 34.88, "targets": [29.50, 26.50], "signal": "Credit Stress"},
+            {"ticker": "WFC", "price": 48.75, "entry": 48.50, "stop": 52.38, "targets": [44.50, 40.00], "signal": "Earnings Concern"}
         ],
         "Healthcare": [
-            {"ticker": "UNH", "price": 510.00, "entry": 509.00, "stop": 548.00, "targets": [460.00, 410.00], "signal": "Regulatory Risk"}
+            {"ticker": "UNH", "price": 510.00, "entry": 509.00, "stop": 548.00, "targets": [460.00, 410.00], "signal": "Regulatory Risk"},
+            {"ticker": "JNJ", "price": 155.20, "entry": 155.00, "stop": 166.53, "targets": [142.00, 130.00], "signal": "Patent Cliff"},
+            {"ticker": "PFE", "price": 26.80, "entry": 26.75, "stop": 28.78, "targets": [24.50, 22.00], "signal": "Pipeline Risk"},
+            {"ticker": "ABBV", "price": 195.50, "entry": 195.25, "stop": 209.93, "targets": [178.50, 160.00], "signal": "M&A Concerns"}
         ],
         "Energy": [
-            {"ticker": "XOM", "price": 115.00, "entry": 114.50, "stop": 126.50, "targets": [105.00, 92.00], "signal": "Peak Cycle"}
+            {"ticker": "XOM", "price": 115.00, "entry": 114.50, "stop": 126.50, "targets": [105.00, 92.00], "signal": "Peak Cycle"},
+            {"ticker": "CVX", "price": 142.30, "entry": 142.00, "stop": 152.68, "targets": [130.00, 115.00], "signal": "Supply Glut"},
+            {"ticker": "MPC", "price": 85.50, "entry": 85.25, "stop": 91.83, "targets": [78.00, 70.00], "signal": "Margin Pressure"},
+            {"ticker": "COP", "price": 68.25, "entry": 68.00, "stop": 73.28, "targets": [62.50, 55.00], "signal": "Production Decline"}
         ],
         "Retail": [
             {"ticker": "AMZN", "price": 182.00, "entry": 181.50, "stop": 195.00, "targets": [165.00, 145.00], "signal": "Margin Pressure"},
-            {"ticker": "HD", "price": 395.00, "entry": 394.50, "stop": 424.00, "targets": [360.00, 320.00], "signal": "Housing Slowdown"}
+            {"ticker": "HD", "price": 395.00, "entry": 394.50, "stop": 424.00, "targets": [360.00, 320.00], "signal": "Housing Slowdown"},
+            {"ticker": "NKE", "price": 78.50, "entry": 78.00, "stop": 85.00, "targets": [70.00, 60.00], "signal": "Demand Weakness"},
+            {"ticker": "MCD", "price": 285.75, "entry": 285.25, "stop": 306.98, "targets": [260.00, 235.00], "signal": "Labor Cost Risk"},
+            {"ticker": "TJX", "price": 88.60, "entry": 88.30, "stop": 95.05, "targets": [81.00, 73.00], "signal": "Inventory Risk"}
         ],
         "Consumer": [
-            {"ticker": "NKE", "price": 78.50, "entry": 78.00, "stop": 85.00, "targets": [70.00, 60.00], "signal": "Demand Weakness"}
+            {"ticker": "COF", "price": 85.00, "entry": 84.75, "stop": 91.13, "targets": [77.50, 70.00], "signal": "Credit Stress"},
+            {"ticker": "GPS", "price": 22.40, "entry": 22.25, "stop": 24.08, "targets": [20.50, 18.00], "signal": "Retail Weakness"},
+            {"ticker": "F", "price": 8.50, "entry": 8.45, "stop": 9.15, "targets": [7.75, 7.00], "signal": "EV Transition"},
+            {"ticker": "GM", "price": 35.20, "entry": 35.00, "stop": 37.80, "targets": [32.00, 28.50], "signal": "Supply Chain"}
         ],
         "Real Estate": [
-            {"ticker": "AMT", "price": 135.00, "entry": 134.50, "stop": 148.00, "targets": [120.00, 100.00], "signal": "Rate Pressure"}
+            {"ticker": "AMT", "price": 135.00, "entry": 134.50, "stop": 148.00, "targets": [120.00, 100.00], "signal": "Rate Pressure"},
+            {"ticker": "PLD", "price": 92.50, "entry": 92.10, "stop": 99.19, "targets": [84.50, 75.00], "signal": "Logistics Slowdown"},
+            {"ticker": "SPG", "price": 116.80, "entry": 116.50, "stop": 125.43, "targets": [107.00, 96.00], "signal": "Retail Headwinds"},
+            {"ticker": "PSA", "price": 245.30, "entry": 245.00, "stop": 263.38, "targets": [224.00, 200.00], "signal": "Occupancy Risk"}
         ]
     }
     
@@ -230,53 +250,53 @@ def get_stocks_for_analysis(sectors):
     """Generate stock analysis based on selected sectors"""
     sector_stocks = {
         "Technology": {
-            "stocks": [("TSLA", 242.50), ("META", 198.75), ("NVDA", 880.00), ("AAPL", 175.25), ("MSFT", 420.50)],
-            "signals": {"TSLA": "Death Cross", "META": "Failed Recovery", "NVDA": "Valuation Extreme", "AAPL": "Trend Weakness", "MSFT": "Consolidation"},
-            "pe": {"TSLA": 78.5, "META": 24.3, "NVDA": 65.2, "AAPL": 29.1, "MSFT": 35.4},
-            "confidence": {"TSLA": "9/10", "META": "8/10", "NVDA": "7/10", "AAPL": "8/10", "MSFT": "7/10"},
-            "ratio": {"TSLA": "1:3", "META": "1:2.5", "NVDA": "1:2", "AAPL": "1:2.5", "MSFT": "1:2"}
+            "stocks": [("TSLA", 242.50), ("META", 198.75), ("NVDA", 880.00), ("AAPL", 175.25), ("MSFT", 420.50), ("GOOGL", 140.30), ("AMD", 185.75), ("AVGO", 128.00)],
+            "signals": {"TSLA": "Death Cross", "META": "Failed Recovery", "NVDA": "Valuation Extreme", "AAPL": "Trend Weakness", "MSFT": "Consolidation", "GOOGL": "Momentum Loss", "AMD": "Support Break", "AVGO": "Downtrend"},
+            "pe": {"TSLA": 78.5, "META": 24.3, "NVDA": 65.2, "AAPL": 29.1, "MSFT": 35.4, "GOOGL": 22.5, "AMD": 45.3, "AVGO": 35.8},
+            "confidence": {"TSLA": "9/10", "META": "8/10", "NVDA": "7/10", "AAPL": "8/10", "MSFT": "7/10", "GOOGL": "8/10", "AMD": "7/10", "AVGO": "7/10"},
+            "ratio": {"TSLA": "1:3", "META": "1:2.5", "NVDA": "1:2", "AAPL": "1:2.5", "MSFT": "1:2", "GOOGL": "1:2.5", "AMD": "1:2", "AVGO": "1:2"}
         },
         "Finance": {
-            "stocks": [("JPM", 195.00), ("GS", 375.00)],
-            "signals": {"JPM": "Rate Vulnerability", "GS": "Trading Weakness"},
-            "pe": {"JPM": 12.3, "GS": 8.5},
-            "confidence": {"JPM": "8/10", "GS": "7/10"},
-            "ratio": {"JPM": "1:2.5", "GS": "1:2"}
+            "stocks": [("JPM", 195.00), ("GS", 375.00), ("BAC", 32.50), ("WFC", 48.75), ("C", 52.10)],
+            "signals": {"JPM": "Rate Vulnerability", "GS": "Trading Weakness", "BAC": "Credit Stress", "WFC": "Earnings Concern", "C": "Diversification Risk"},
+            "pe": {"JPM": 12.3, "GS": 8.5, "BAC": 9.2, "WFC": 10.1, "C": 7.8},
+            "confidence": {"JPM": "8/10", "GS": "7/10", "BAC": "7/10", "WFC": "7/10", "C": "6/10"},
+            "ratio": {"JPM": "1:2.5", "GS": "1:2", "BAC": "1:2", "WFC": "1:2", "C": "1:2"}
         },
         "Healthcare": {
-            "stocks": [("UNH", 510.00)],
-            "signals": {"UNH": "Regulatory Risk"},
-            "pe": {"UNH": 28.5},
-            "confidence": {"UNH": "8/10"},
-            "ratio": {"UNH": "1:2.5"}
+            "stocks": [("UNH", 510.00), ("JNJ", 155.20), ("PFE", 26.80), ("ABBV", 195.50), ("TMO", 278.40)],
+            "signals": {"UNH": "Regulatory Risk", "JNJ": "Patent Cliff", "PFE": "Pipeline Risk", "ABBV": "M&A Concerns", "TMO": "Integration Risk"},
+            "pe": {"UNH": 28.5, "JNJ": 24.3, "PFE": 12.1, "ABBV": 18.2, "TMO": 32.5},
+            "confidence": {"UNH": "8/10", "JNJ": "7/10", "PFE": "7/10", "ABBV": "7/10", "TMO": "6/10"},
+            "ratio": {"UNH": "1:2.5", "JNJ": "1:2", "PFE": "1:2", "ABBV": "1:2", "TMO": "1:2"}
         },
         "Energy": {
-            "stocks": [("XOM", 115.00)],
-            "signals": {"XOM": "Peak Cycle"},
-            "pe": {"XOM": 11.2},
-            "confidence": {"XOM": "7/10"},
-            "ratio": {"XOM": "1:2"}
+            "stocks": [("XOM", 115.00), ("CVX", 142.30), ("MPC", 85.50), ("PSX", 112.80), ("COP", 68.25)],
+            "signals": {"XOM": "Peak Cycle", "CVX": "Supply Glut", "MPC": "Margin Pressure", "PSX": "Crack Spread Risk", "COP": "Production Decline"},
+            "pe": {"XOM": 11.2, "CVX": 10.5, "MPC": 9.8, "PSX": 8.2, "COP": 9.5},
+            "confidence": {"XOM": "7/10", "CVX": "7/10", "MPC": "6/10", "PSX": "6/10", "COP": "7/10"},
+            "ratio": {"XOM": "1:2", "CVX": "1:2", "MPC": "1:2", "PSX": "1:2", "COP": "1:2"}
         },
         "Retail": {
-            "stocks": [("AMZN", 182.00), ("HD", 395.00), ("NKE", 78.50)],
-            "signals": {"AMZN": "Margin Pressure", "HD": "Housing Slowdown", "NKE": "Demand Weakness"},
-            "pe": {"AMZN": 56.3, "HD": 22.1, "NKE": 32.4},
-            "confidence": {"AMZN": "7/10", "HD": "8/10", "NKE": "7/10"},
-            "ratio": {"AMZN": "1:2", "HD": "1:2.5", "NKE": "1:2"}
+            "stocks": [("AMZN", 182.00), ("HD", 395.00), ("NKE", 78.50), ("MCD", 285.75), ("SBUX", 95.30), ("TJX", 88.60)],
+            "signals": {"AMZN": "Margin Pressure", "HD": "Housing Slowdown", "NKE": "Demand Weakness", "MCD": "Labor Cost Risk", "SBUX": "Competition Risk", "TJX": "Inventory Risk"},
+            "pe": {"AMZN": 56.3, "HD": 22.1, "NKE": 32.4, "MCD": 28.5, "SBUX": 35.2, "TJX": 24.8},
+            "confidence": {"AMZN": "7/10", "HD": "8/10", "NKE": "7/10", "MCD": "7/10", "SBUX": "6/10", "TJX": "7/10"},
+            "ratio": {"AMZN": "1:2", "HD": "1:2.5", "NKE": "1:2", "MCD": "1:2", "SBUX": "1:2", "TJX": "1:2"}
         },
         "Consumer": {
-            "stocks": [("COF", 85.00)],
-            "signals": {"COF": "Credit Stress"},
-            "pe": {"COF": 14.2},
-            "confidence": {"COF": "7/10"},
-            "ratio": {"COF": "1:2"}
+            "stocks": [("COF", 85.00), ("GPS", 22.40), ("F", 8.50), ("GM", 35.20), ("CZR", 65.80)],
+            "signals": {"COF": "Credit Stress", "GPS": "Retail Weakness", "F": "EV Transition", "GM": "Supply Chain", "CZR": "Demand Risk"},
+            "pe": {"COF": 14.2, "GPS": 5.8, "F": 4.2, "GM": 6.5, "CZR": 8.3},
+            "confidence": {"COF": "7/10", "GPS": "6/10", "F": "7/10", "GM": "6/10", "CZR": "6/10"},
+            "ratio": {"COF": "1:2", "GPS": "1:2", "F": "1:2", "GM": "1:2", "CZR": "1:2"}
         },
         "Real Estate": {
-            "stocks": [("AMT", 135.00)],
-            "signals": {"AMT": "Rate Pressure"},
-            "pe": {"AMT": 18.5},
-            "confidence": {"AMT": "7/10"},
-            "ratio": {"AMT": "1:2"}
+            "stocks": [("AMT", 135.00), ("PLD", 92.50), ("SPG", 116.80), ("PSA", 245.30), ("WELL", 65.40)],
+            "signals": {"AMT": "Rate Pressure", "PLD": "Logistics Slowdown", "SPG": "Retail Headwinds", "PSA": "Occupancy Risk", "WELL": "Healthcare Reform"},
+            "pe": {"AMT": 18.5, "PLD": 22.1, "SPG": 12.8, "PSA": 28.3, "WELL": 15.6},
+            "confidence": {"AMT": "7/10", "PLD": "7/10", "SPG": "6/10", "PSA": "7/10", "WELL": "6/10"},
+            "ratio": {"AMT": "1:2", "PLD": "1:2", "SPG": "1:2", "PSA": "1:2", "WELL": "1:2"}
         }
     }
     
