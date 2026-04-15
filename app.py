@@ -230,11 +230,11 @@ def get_stocks_for_analysis(sectors):
     """Generate stock analysis based on selected sectors"""
     sector_stocks = {
         "Technology": {
-            "stocks": [("TSLA", 242.50), ("META", 198.75), ("NVDA", 880.00)],
-            "signals": {"TSLA": "Death Cross", "META": "Failed Recovery", "NVDA": "Valuation Extreme"},
-            "pe": {"TSLA": 78.5, "META": 24.3, "NVDA": 65.2},
-            "confidence": {"TSLA": "9/10", "META": "8/10", "NVDA": "7/10"},
-            "ratio": {"TSLA": "1:3", "META": "1:2.5", "NVDA": "1:2"}
+            "stocks": [("TSLA", 242.50), ("META", 198.75), ("NVDA", 880.00), ("AAPL", 175.25), ("MSFT", 420.50)],
+            "signals": {"TSLA": "Death Cross", "META": "Failed Recovery", "NVDA": "Valuation Extreme", "AAPL": "Trend Weakness", "MSFT": "Consolidation"},
+            "pe": {"TSLA": 78.5, "META": 24.3, "NVDA": 65.2, "AAPL": 29.1, "MSFT": 35.4},
+            "confidence": {"TSLA": "9/10", "META": "8/10", "NVDA": "7/10", "AAPL": "8/10", "MSFT": "7/10"},
+            "ratio": {"TSLA": "1:3", "META": "1:2.5", "NVDA": "1:2", "AAPL": "1:2.5", "MSFT": "1:2"}
         },
         "Finance": {
             "stocks": [("JPM", 195.00), ("GS", 375.00)],
