@@ -487,7 +487,7 @@ with tab1:
         with st.container():
             st.markdown(f"**{item['title']}** {item['impact']}")
             st.write(item['summary'])
-            st.caption(f"💡 Short Ideas: {item['short_candidates']}")
+            st.caption(f"💡 Long Ideas: {item['long_candidates']}")
             st.divider()
     
     st.info(f"📌 **Analyzed Sectors:** {', '.join(current_sectors)}")
