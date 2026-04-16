@@ -2,7 +2,8 @@ import streamlit as st
 import os
 from dotenv import load_dotenv
 from utils import (format_time_display, get_us_and_egyptian_time, get_current_stock_price, 
-                   get_multiple_stock_prices, fetch_financial_news_24h, get_latest_market_alerts)
+                   get_multiple_stock_prices, fetch_financial_news_24h, get_latest_market_alerts,
+                   analyze_news_sentiment, generate_signals_from_news)
 from datetime import datetime
 import time
 
@@ -237,55 +238,92 @@ def get_confidence_score(use_leverage):
     return min(base_score + leverage_bonus, 95)
 
 def get_news_for_sectors(sectors):
-    """Generate news based on selected sectors"""
-    sector_news = {
-        "Technology": [
-            {"title": "Tech Giants Exceed Growth Expectations", "impact": "📈 Bullish", "summary": "Strong earnings growth and AI revenue acceleration driving valuations higher", "long_candidates": "NVDA, META, TSLA"},
-            {"title": "AI Boom Continues with Record Investments", "impact": "📈 Bullish", "summary": "Enterprise AI spending reaches new highs - infrastructure play heating up", "long_candidates": "MSFT, AAPL, GOOGL"}
-        ],
-        "Finance": [
-            {"title": "Fed Rate Cuts Signal Economic Recovery", "impact": "📈 Bullish", "summary": "Upcoming rate reductions expected to boost financial sector earnings", "long_candidates": "JPM, GS, BAC"},
-            {"title": "Banking Sector Shows Strong Recovery", "impact": "📈 Bullish", "summary": "Net interest margins expand with stabilizing deposit bases", "long_candidates": "WFC, C"}
-        ],
-        "Healthcare": [
-            {"title": "Pharma Pipeline Shows Breakthrough Results", "impact": "📈 Bullish", "summary": "Multiple drug approvals expected - blockbuster candidates advancing", "long_candidates": "JNJ, PFE, ABBV"},
-            {"title": "Healthcare Reform Creates Growth Opportunities", "impact": "📈 Bullish", "summary": "New regulations open market expansion avenues for major players", "long_candidates": "UNH, TMO"}
-        ],
-        "Energy": [
-            {"title": "Oil Prices Rally on Supply Concerns", "impact": "📈 Bullish", "summary": "Geopolitical tensions and production cuts supporting energy prices", "long_candidates": "XOM, CVX, COP"},
-            {"title": "Energy Transition Accelerates Value Creation", "impact": "📈 Bullish", "summary": "Integrated energy companies thriving with mixed portfolios", "long_candidates": "MPC, PSX"}
-        ],
-        "Retail": [
-            {"title": "Consumer Spending Accelerates Post-Crisis", "impact": "📈 Bullish", "summary": "Holiday sales beat expectations - retail confidence surging", "long_candidates": "HD, NKE, TJX"},
-            {"title": "E-commerce Leaders Reporting Margin Expansion", "impact": "📈 Bullish", "summary": "Operating leverage kicking in as scale increases", "long_candidates": "AMZN, MCD"}
-        ],
-        "Real Estate": [
-            {"title": "Commercial Real Estate Market Stabilizing", "impact": "📈 Bullish", "summary": "Quality properties commanding premium valuations in recovery", "long_candidates": "AMT, PLD"},
-            {"title": "REITs Rally on Interest Rate Expectations", "impact": "📈 Bullish", "summary": "Lower rates improving capitalization rates and valuations", "long_candidates": "SPG, PSA"}
-        ],
-        "Consumer": [
-            {"title": "Consumer Confidence Index Soars", "impact": "📈 Bullish", "summary": "Households confident in economic outlook - spending accelerating", "long_candidates": "COF, GPS"},
-            {"title": "Credit Quality Improves Across Board", "impact": "📈 Bullish", "summary": "Default rates declining - consumer health strengthening", "long_candidates": "AXP, DFS"}
-        ]
+    """Generate news based on selected sectors with sentiment-based signals"""
+    # Fetch real news from financial sources
+    sector_queries = {
+        "Technology": "technology stocks earnings AI",
+        "Finance": "banking sector finance stocks earnings",
+        "Healthcare": "healthcare pharma stocks earnings",
+        "Energy": "oil energy stocks prices",
+        "Retail": "retail consumer stocks earnings",
+        "Real Estate": "real estate REIT stocks",
+        "Consumer": "consumer credit stocks earnings"
     }
     
+    news_items = []
+    
+    # Get sectors to fetch news for
     if "All Sectors" in sectors or not sectors:
-        all_news = []
-        for news_list in sector_news.values():
-            all_news.extend(news_list)
-        return all_news[:3]
+        sectors_to_fetch = list(sector_queries.keys())[:3]  # Fetch for first 3 sectors
     else:
-        filtered_news = []
-        for sector in sectors:
-            if sector in sector_news:
-                filtered_news.extend(sector_news[sector])
-        if filtered_news:
-            return filtered_news[:3]
-        else:
+        sectors_to_fetch = sectors[:3]
+    
+    # Fetch real news for each sector
+    all_news_articles = []
+    for sector in sectors_to_fetch:
+        query = sector_queries.get(sector, sector)
+        articles = fetch_financial_news_24h(query, limit=2)
+        all_news_articles.extend(articles)
+    
+    # Generate signals based on news sentiment
+    signal_data = generate_signals_from_news(all_news_articles)
+    
+    # If we got real news, return it with sentiment-based signals
+    if all_news_articles:
+        for idx, article in enumerate(all_news_articles[:3]):
+            # Analyze sentiment for this article
+            article_sentiment = analyze_news_sentiment(article.get("title", "") + " " + article.get("summary", ""))
+            
+            # Determine impact based on sentiment
+            if article_sentiment["is_bullish"]:
+                impact = "📈 Bullish"
+            elif article_sentiment["is_bearish"]:
+                impact = "📉 Bearish"
+            else:
+                impact = "➡️ Neutral"
+            
+            news_items.append({
+                "title": article.get("title", "Market News"),
+                "impact": impact,
+                "summary": article.get("summary", "Latest market update"),
+                "long_candidates": article.get("source", "Financial News"),
+                "sentiment": round(article_sentiment["sentiment"], 2)
+            })
+        
+        return news_items[:3]
+    
+    # Fallback to default news if API fails
+    else:
+        default_news = {
+            "Technology": [
+                {"title": "Tech Giants Exceed Growth Expectations", "impact": "📈 Bullish", "summary": "Strong earnings growth and AI revenue acceleration driving valuations higher", "long_candidates": "NVDA, META, TSLA"},
+                {"title": "AI Boom Continues with Record Investments", "impact": "📈 Bullish", "summary": "Enterprise AI spending reaches new highs - infrastructure play heating up", "long_candidates": "MSFT, AAPL, GOOGL"}
+            ],
+            "Finance": [
+                {"title": "Fed Rate Cuts Signal Economic Recovery", "impact": "📈 Bullish", "summary": "Upcoming rate reductions expected to boost financial sector earnings", "long_candidates": "JPM, GS, BAC"},
+                {"title": "Banking Sector Shows Strong Recovery", "impact": "📈 Bullish", "summary": "Net interest margins expand with stabilizing deposit bases", "long_candidates": "WFC, C"}
+            ]
+        }
+        
+        if "All Sectors" in sectors or not sectors:
             all_news = []
-            for news_list in sector_news.values():
+            for news_list in default_news.values():
                 all_news.extend(news_list)
             return all_news[:3]
+        else:
+            filtered_news = []
+            for sector in sectors:
+                if sector in default_news:
+                    filtered_news.extend(default_news[sector])
+            
+            # If no news for sectors, use all available
+            if filtered_news:
+                return filtered_news[:3]
+            else:
+                all_fallback = []
+                for news_list in default_news.values():
+                    all_fallback.extend(news_list)
+                return all_fallback[:3]
 
 def get_stocks_for_analysis(sectors):
     """Generate stock analysis based on selected sectors with REAL MARKET PRICES"""

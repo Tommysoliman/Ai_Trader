@@ -205,3 +205,112 @@ def get_default_alerts() -> List[Dict]:
         {"type": "success", "title": "✅ System Ready", "message": "Long CFD analysis engine active", "time": "5 min ago"},
         {"type": "info", "title": "🔄 Data Refresh", "message": "Alerts update every 2 minutes", "time": "8 min ago"}
     ]
+
+def analyze_news_sentiment(text: str) -> Dict[str, any]:
+    """
+    Analyze news sentiment using keyword matching
+    Returns sentiment score (-1 to 1) and signal type
+    """
+    text_lower = text.lower()
+    
+    # Bullish keywords
+    bullish_keywords = [
+        "surge", "jump", "rally", "beat", "exceed", "growth", "strong", "recovery",
+        "upside", "bullish", "gains", "outperform", "breakthrough", "upgrade",
+        "record high", "accelerate", "boom", "momentum", "crush", "soar"
+    ]
+    
+    # Bearish keywords
+    bearish_keywords = [
+        "plunge", "drop", "crash", "miss", "fail", "decline", "weak", "stress",
+        "downside", "bearish", "loss", "underperform", "downgrade", "warning",
+        "warning sign", "risk", "concern", "slump", "tumble", "collapse"
+    ]
+    
+    bullish_score = sum(1 for keyword in bullish_keywords if keyword in text_lower)
+    bearish_score = sum(1 for keyword in bearish_keywords if keyword in text_lower)
+    
+    # Calculate sentiment (-1 to 1)
+    total = bullish_score + bearish_score
+    if total == 0:
+        sentiment = 0
+    else:
+        sentiment = (bullish_score - bearish_score) / total
+    
+    return {
+        "sentiment": sentiment,
+        "bullish_count": bullish_score,
+        "bearish_count": bearish_score,
+        "is_bullish": sentiment > 0.2,
+        "is_bearish": sentiment < -0.2,
+        "is_neutral": -0.2 <= sentiment <= 0.2
+    }
+
+def generate_signals_from_news(news_articles: List[Dict]) -> Dict[str, str]:
+    """
+    Generate technical signals based on recent news sentiment
+    Returns mapping of signal types to descriptions
+    """
+    if not news_articles:
+        return {
+            "signal_type": "Neutral",
+            "bullish_signal": "Consolidation",
+            "bearish_signal": "No Pressure"
+        }
+    
+    # Analyze sentiment across all news articles
+    all_sentiments = []
+    for article in news_articles[:5]:
+        title_sentiment = analyze_news_sentiment(article.get("title", ""))
+        summary_sentiment = analyze_news_sentiment(article.get("summary", ""))
+        
+        # Combine both
+        combined = (title_sentiment["sentiment"] + summary_sentiment["sentiment"]) / 2
+        all_sentiments.append(combined)
+    
+    # Calculate average sentiment
+    avg_sentiment = sum(all_sentiments) / len(all_sentiments) if all_sentiments else 0
+    
+    # Map sentiment to signals
+    bullish_signals = [
+        "Golden Cross", "Strong Breakout", "Bull Run", "Uptrend Confirmed",
+        "Bullish Resolution", "Recovery Rally", "Trading Strength", "Credit Recovery",
+        "Regulatory Tailwinds", "Strong Pipeline", "Pipeline Growth", "M&A Upside",
+        "Cycle Bottom", "Supply Recovery", "Margin Expansion", "Production Upside",
+        "Margin Recovery", "Housing Recovery", "Demand Recovery", "Labor Optimization"
+    ]
+    
+    bearish_signals = [
+        "Death Cross", "Failed Recovery", "Valuation Extreme", "Trend Weakness",
+        "Rate Vulnerability", "Trading Weakness", "Credit Stress", "Earnings Concern",
+        "Patent Cliff", "Pipeline Risk", "M&A Concerns", "Peak Cycle", "Supply Glut",
+        "Margin Pressure", "Production Decline", "Housing Slowdown", "Demand Weakness"
+    ]
+    
+    neutral_signals = [
+        "Consolidation", "Range Trading", "Support Holds", "Technical Equilibrium"
+    ]
+    
+    # Select signal based on sentiment
+    if avg_sentiment > 0.3:
+        signal = bullish_signals[int((avg_sentiment * 10) % len(bullish_signals))]
+        signal_type = "Strong Bullish"
+    elif avg_sentiment > 0.1:
+        signal = bullish_signals[int((avg_sentiment * 5) % len(bullish_signals))]
+        signal_type = "Mildly Bullish"
+    elif avg_sentiment < -0.3:
+        signal = bearish_signals[int((abs(avg_sentiment) * 10) % len(bearish_signals))]
+        signal_type = "Strong Bearish"
+    elif avg_sentiment < -0.1:
+        signal = bearish_signals[int((abs(avg_sentiment) * 5) % len(bearish_signals))]
+        signal_type = "Mildly Bearish"
+    else:
+        signal = neutral_signals[0]
+        signal_type = "Neutral"
+    
+    return {
+        "signal": signal,
+        "signal_type": signal_type,
+        "sentiment_score": round(avg_sentiment, 2),
+        "confidence": round(abs(avg_sentiment) * 100, 0)
+    }
