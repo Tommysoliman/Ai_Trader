@@ -56,60 +56,31 @@ st.markdown("""
 # Sidebar
 with st.sidebar:
     st.image("https://via.placeholder.com/150x50?text=AI+Traders", use_column_width=True)
-    st.title("⚙️ Controls")
+    st.divider()
+    st.markdown("### 👥 Agent Team")
+    st.markdown("""
+    **📰 News Researcher** (10 years)
+    Identifies breaking news and market-moving events affecting US stocks.
     
-    analysis_type = st.radio(
-        "Select Analysis Type",
-        ["Quick Analysis", "Full Deep Dive", "News Only", "Technical Only"]
-    )
+    **👔 News Manager** (20 years)  
+    Synthesizes news into actionable trading signals and sector strategies.
     
-    market_focus = st.multiselect(
-        "Market Focus Sectors",
-        ["Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer", "All Sectors"],
-        default=["All Sectors"]
-    )
+    **📊 Stock Analyst** (10 years)
+    Technical and fundamental analysis specialist.
     
-    position_size = st.slider(
-        "Position Size Risk ($)",
-        min_value=5,
-        max_value=500,
-        value=50,
-        step=5
-    )
+    **🎯 Portfolio Manager** (20 years)
+    Risk management and position strategy expert.
+    """)
     
     st.divider()
-    run_button = st.button("🚀 Run Analysis", use_container_width=True, key="run_analysis_btn")
-    st.divider()
-    
-    st.subheader("📊 Settings")
-    
-    use_leverage = st.checkbox("Use CFD Leverage", value=True)
-    if use_leverage:
-        leverage = st.slider("Leverage Ratio", 1, 50, 5)
-    else:
-        leverage = 1
-    
-    stop_loss_pct = st.slider("Stop Loss %", 1, 20, 5)
-    take_profit_pct = st.slider("Take Profit %", 5, 50, 15)
-    
-    st.divider()
-    st.subheader("🔌 API Configuration")
-    
-    api_key = st.text_input("OpenAI API Key (Optional)", type="password", placeholder="sk-...")
-    
-    if run_button:
-        # Store analysis parameters in session state
-        st.session_state.analysis_params = {
-            'analysis_type': analysis_type,
-            'market_focus': market_focus,
-            'position_size': position_size,
-            'use_leverage': use_leverage,
-            'leverage': leverage,
-            'stop_loss_pct': stop_loss_pct,
-            'take_profit_pct': take_profit_pct
-        }
-        st.session_state.analysis_run = True
-        st.success("✅ Analysis Updated! Results below are now based on your selections.")
+    st.markdown("### ⚡ Live Features")
+    st.markdown("""
+    ✅ Real-time News Feed (24h)
+    ✅ Yahoo Finance Prices  
+    ✅ Sentiment Analysis
+    ✅ Auto-refresh (2 min)
+    ✅ Multi-Agent Collab
+    """)
 
 # ==================== HELPER FUNCTIONS ====================
 
@@ -473,64 +444,42 @@ with alert_col2:
 st.markdown("---")
 
 # Main Tabs
-tab1, tab2, tab3, tab4 = st.tabs([
+tab1, tab2, tab3, tab4, tab5 = st.tabs([
     "📰 News Analysis",
     "📊 Stock Analysis",
     "💰 Long Recommendations",
-    "📈 Portfolio Strategy"
+    "📈 Portfolio Strategy",
+    "👥 Agent Profiles"
 ])
 
 # ==================== TAB 1: NEWS ANALYSIS ====================
 with tab1:
-    st.header("📰 Market News Analysis")
-    st.markdown("""
-    This section provides latest market news and sentiment analysis affecting US stocks.
-    The News Researcher (10 years) and News Manager (20 years) collaborate to identify bullish signals.
-    """)
+    st.header("📰 Latest Market News by Sector (24 Hours)")
+    st.markdown("Real-time news analysis showing what happened in each sector in the last 24 hours.")
     
-    col1, col2 = st.columns(2)
+    # Define all sectors
+    all_sectors = ["Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
     
-    with col1:
-        st.subheader("📡 News Researcher (10 years)")
-        with st.expander("Researcher Profile", expanded=False):
-            st.markdown("""
-            - **Experience:** 10 years in US market
-            - **Expertise:** Breaking news, market sentiment, sector analysis
-            - **Role:** Identify raw market-moving events
-            - **Focus:** Pattern recognition in news that precedes movements
-            """)
+    # Fetch and display news for each sector
+    for sector in all_sectors:
+        with st.expander(f"🔷 {sector}", expanded=True):
+            # Get news for this specific sector
+            news_items = get_news_for_sectors([sector])
+            
+            if news_items:
+                # Display the first 2 news items as 2-sentence summaries
+                for idx, item in enumerate(news_items[:2], 1):
+                    sentiment_emoji = item['impact']
+                    st.markdown(f"**{idx}. {item['title']}** {sentiment_emoji}")
+                    st.markdown(f"*{item['summary'][:150]}...*")
+                    st.caption(f"📍 {item['long_candidates']} | Sentiment: {item.get('sentiment', 0)}")
+                    
+                    if idx < 2:
+                        st.divider()
+            else:
+                st.info(f"No news data available for {sector}")
     
-    with col2:
-        st.subheader("👔 News Manager (20 years)")
-        with st.expander("Manager Profile", expanded=False):
-            st.markdown("""
-            - **Experience:** 20 years in US market
-            - **Expertise:** Strategic synthesis, macro trends, sector correlations
-            - **Role:** Convert raw data into actionable trading insights
-            - **Focus:** Identify stocks affected by macro trends
-            """)
-    
-    # News Analysis Results
-    st.markdown("### Latest Market-Moving News")
-    
-    # Get current parameters with defaults
-    if st.session_state.analysis_params:
-        params = st.session_state.analysis_params
-        current_sectors = params['market_focus']
-    else:
-        current_sectors = ["All Sectors"]
-    
-    # Get dynamic news based on sectors
-    news_items = get_news_for_sectors(current_sectors)
-    
-    for item in news_items:
-        with st.container():
-            st.markdown(f"**{item['title']}** {item['impact']}")
-            st.write(item['summary'])
-            st.caption(f"💡 Long Ideas: {item['long_candidates']}")
-            st.divider()
-    
-    st.info(f"📌 **Analyzed Sectors:** {', '.join(current_sectors)}")
+    st.info("💡 Tip: Click each sector to see the latest 24-hour news. Updates automatically every 2 minutes.")
 
 # ==================== TAB 2: STOCK ANALYSIS ====================
 with tab2:
@@ -567,14 +516,8 @@ with tab2:
     # Create dynamic analysis table
     import pandas as pd
     
-    # Get current parameters with defaults
-    if st.session_state.analysis_params:
-        params = st.session_state.analysis_params
-        current_sectors = params['market_focus']
-    else:
-        current_sectors = ["All Sectors"]
-    
-    # Get dynamic stocks based on sectors
+    # Get dynamic stocks - using all sectors by default
+    current_sectors = ["All Sectors"]
     filtered_stocks, sector_stocks_db = get_stocks_for_analysis(current_sectors)
     
     # Build dynamic dataframe
@@ -651,20 +594,13 @@ with tab3:
     st.header("💰 Top Long CFD Opportunities")
     st.markdown("Curated long positions based on collaborative multi-agent analysis")
     
-    # Get current parameters with defaults
-    if st.session_state.analysis_params:
-        params = st.session_state.analysis_params
-        current_leverage = params['leverage']
-        current_sectors = params['market_focus']
-        current_position_size = params['position_size']
-        use_leverage_setting = params['use_leverage']
-    else:
-        current_leverage = 5
-        current_sectors = ["All Sectors"]
-        current_position_size = 5000
-        use_leverage_setting = True
+    # Default settings
+    current_leverage = 5
+    current_sectors = ["All Sectors"]
+    current_position_size = 5000
+    use_leverage_setting = True
     
-    st.markdown("### 🎯 Top Short CFD Positions (Risk Adjusted)")
+    st.markdown("### 🎯 Top Long CFD Positions (Risk Adjusted)")
     
     # Get filtered recommendations based on sectors
     filtered_stocks = get_recommendations_for_sectors(current_sectors, current_leverage)
@@ -711,22 +647,11 @@ with tab3:
 with tab4:
     st.header("📈 Portfolio Strategy & Risk Management")
     
-    # Get current parameters with defaults
-    if st.session_state.analysis_params:
-        p = st.session_state.analysis_params
-        p_position_size = p['position_size']
-        p_leverage = p['leverage']
-        p_stop_loss = p['stop_loss_pct']
-        p_take_profit = p['take_profit_pct']
-        p_sectors = p['market_focus']
-        p_use_leverage = p['use_leverage']
-    else:
-        p_position_size = 5000
-        p_leverage = 5
-        p_stop_loss = 5
-        p_take_profit = 15
-        p_sectors = ["All Sectors"]
-        p_use_leverage = True
+    # Default settings
+    p_position_size = 5000
+    p_leverage = 5
+    p_stop_loss = 5
+    p_take_profit = 15
     
     st.markdown("### 🛡️ Portfolio Allocation")
     
@@ -736,11 +661,11 @@ with tab4:
         st.markdown("**Risk Distribution**")
         total_capital = 15000
         num_positions = total_capital // p_position_size
-        margin_required = (total_capital * p_leverage) / p_leverage if p_use_leverage else total_capital
+        margin_required = total_capital
         st.write(f"- Total Capital at Risk: ${total_capital:,}")
         st.write(f"- Position Size per Trade: ${p_position_size:,}")
         st.write(f"- Number of Positions: {num_positions}")
-        st.write(f"- Leverage Multiplier: {p_leverage}x" if p_use_leverage else "- Leverage: Disabled (1:1)")
+        st.write(f"- Leverage Multiplier: {p_leverage}x (Enabled)")
         st.write(f"- Margin Required: ${margin_required:,.0f}")
     
     with col2:
@@ -756,16 +681,11 @@ with tab4:
         with col_metric2:
             st.metric("Sharpe Ratio", "1.85", "-")
     
-    st.markdown("### 📊 Diversification by Selected Sectors")
+    st.markdown("### 📊 Diversification by Sector")
     
-    # Calculate sector weights based on selected sectors
-    if "All Sectors" in p_sectors or not p_sectors:
-        sectors_list = ["Technology", "Finance", "Healthcare", "Retail", "Energy"]
-        sector_weights = [35, 25, 15, 15, 10]
-    else:
-        sectors_list = p_sectors
-        base_weight = 100 // len(sectors_list)
-        sector_weights = [base_weight] * len(sectors_list)
+    # Default sector weights
+    sectors_list = ["Technology", "Finance", "Healthcare", "Retail", "Energy"]
+    sector_weights = [35, 25, 15, 15, 10]
     
     fig_data = {
         "Sector": sectors_list,
@@ -805,42 +725,104 @@ with tab4:
     with col3:
         st.markdown(f"""
         **Leverage Rules**
-        - Max leverage: {p_leverage}:1 {'✅ Enabled' if p_use_leverage else '❌ Disabled'}
+        - Max leverage: {p_leverage}:1 ✅ Enabled
         - Reduce at 50% account profit
         - No leverage on new positions if down 20%
         """)
+
+# ==================== TAB 5: AGENT PROFILES ====================
+with tab5:
+    st.header("👥 Meet Your Agent Team")
+    st.markdown("Our collaborative multi-agent system brings 60 years of combined trading expertise.")
     
-    st.info(f"⚙️ **Current Settings:** Stop Loss: {stop_loss_pct}% | Take Profit: {take_profit_pct}% | Leverage: {'Enabled' if use_leverage else 'Disabled'}")
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### 📡 News Researcher")
+        st.markdown("""
+        **Experience:** 10 years in US market analysis
+        
+        **Expertise:** 
+        - Breaking news identification
+        - Market sentiment analysis
+        - Sector-specific trends
+        - Real-time price action
+        
+        **Role:** Scour financial news sources (24/7) to identify raw market-moving events before they're priced in.
+        
+        **Focus:** Pattern recognition in news that historically precedes major price movements.
+        """)
+    
+    with col2:
+        st.markdown("### 👔 News Manager")
+        st.markdown("""
+        **Experience:** 20 years in portfolio management
+        
+        **Expertise:**
+        - Strategic synthesis
+        - Macro trend analysis
+        - Sector correlations
+        - Risk-adjusted positioning
+        
+        **Role:** Convert raw market data into actionable trading insights and precise entry points.
+        
+        **Focus:** Identify which stocks will be most affected by macro trends and sentiment shifts.
+        """)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### 📊 Stock Market Analyst")
+        st.markdown("""
+        **Experience:** 10 years technical & fundamental analysis
+        
+        **Expertise:**
+        - Technical pattern recognition
+        - Fundamental metrics evaluation
+        - Support/resistance identification
+        - Breakout pattern analysis
+        
+        **Role:** Deep-dive technical and fundamental analysis to validate trading signals.
+        
+        **Focus:** Identify breakdowns and deteriorating metrics across sectors.
+        """)
+    
+    with col2:
+        st.markdown("### 🎯 Portfolio Manager")
+        st.markdown("""
+        **Experience:** 20 years short strategy & risk management
+        
+        **Expertise:**
+        - Risk management frameworks
+        - Position sizing algorithms
+        - Bear market strategies
+        - Leverage optimization
+        
+        **Role:** Structure positions, manage risk, and coordinate all agents' insights.
+        
+        **Focus:** Risk-adjusted returns and leverage-enhanced strategies that preserve capital.
+        """)
+    
+    st.markdown("---")
+    st.markdown("""
+    ### 🤝 How They Work Together
+    
+    1. **News Researcher** identifies emerging trends from 24h news
+    2. **News Manager** synthesizes trends into sector-level opportunities
+    3. **Stock Market Analyst** validates with technical & fundamental analysis
+    4. **Portfolio Manager** sizes positions and manages risk
+    5. **Result:** Precise, high-confidence long CFD recommendations
+    
+    ### ⚡ Tech Stack
+    - **CrewAI:** Multi-agent orchestration & collaboration
+    - **Streamlit:** Real-time interface
+    - **Python:** Backend processing
+    - **OpenAI:** LLM backbone for agent reasoning
+    - **Yahoo Finance:** Real-time pricing
+    - **NewsAPI:** 24-hour financial news feeds
+    """)
 
 # ==================== FOOTER ====================
 st.markdown("---")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.markdown("""
-    **👥 Agent Team**
-    - News Researcher (10y)
-    - News Manager (20y)  
-    - Stock Analyst (10y)
-    - Portfolio Manager (20y)
-    """)
-
-with col2:
-    st.markdown("""
-    **⚡ Tech Stack**
-    - CrewAI: Multi-agent orchestration
-    - Streamlit: Interface
-    - Python: Backend processing
-    - OpenAI: LLM backbone
-    """)
-
-with col3:
-    st.markdown("""
-    **📱 Connect & Deploy**
-    - GitHub: Source code & documentation
-    - Docker: Easy deployment
-    - Cloud: Scalable infrastructure
-    """)
-
 st.markdown("*Disclaimer: This is for educational purposes. Not financial advice. Trade at your own risk.*")
+st.caption("🔄 Updates every 2 minutes | 📊 Powered by AI Traders | GitHub: Tommysoliman/Ai_Trader")
