@@ -463,8 +463,22 @@ with tab1:
     # Fetch and display news for each sector
     for sector in all_sectors:
         with st.expander(f"🔷 {sector}", expanded=True):
+            # Fetch real news for this specific sector
+            sector_queries = {
+                "Technology": "technology stocks AI earnings machine learning",
+                "Finance": "banking financial sector stocks earnings interest rates",
+                "Healthcare": "healthcare pharma pharmaceutical stocks clinical trials",
+                "Energy": "oil energy gas stocks renewable energy commodities",
+                "Retail": "retail consumer stocks e-commerce sales earnings",
+                "Real Estate": "real estate REIT property stocks housing",
+                "Consumer": "consumer credit cards stocks spending debt"
+            }
+            
+            query = sector_queries.get(sector, sector)
+            sector_news = fetch_financial_news_24h(query, limit=3)
+            
             # Get news for this specific sector
-            news_items = get_news_for_sectors([sector])
+            news_items = sector_news if sector_news else []
             
             if news_items:
                 # Display the first 2 news items as 2-sentence summaries
@@ -516,8 +530,21 @@ with tab2:
     # Create dynamic analysis table
     import pandas as pd
     
-    # Get dynamic stocks - using all sectors by default
-    current_sectors = ["All Sectors"]
+    # Industry selector dropdown
+    industries = ["All Sectors", "Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
+    selected_industry = st.selectbox(
+        "📊 Filter by Industry",
+        industries,
+        index=0,
+        key="stock_analysis_industry"
+    )
+    
+    # Get dynamic stocks based on selected industry
+    if selected_industry == "All Sectors":
+        current_sectors = ["All Sectors"]
+    else:
+        current_sectors = [selected_industry]
+    
     filtered_stocks, sector_stocks_db = get_stocks_for_analysis(current_sectors)
     
     # Build dynamic dataframe
@@ -647,6 +674,15 @@ with tab3:
 with tab4:
     st.header("📈 Portfolio Strategy & Risk Management")
     
+    # Industry selector dropdown
+    industries = ["All Sectors", "Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
+    selected_portfolio_industry = st.selectbox(
+        "🏢 Focus Portfolio by Industry",
+        industries,
+        index=0,
+        key="portfolio_industry"
+    )
+    
     # Default settings
     p_position_size = 5000
     p_leverage = 5
@@ -683,9 +719,14 @@ with tab4:
     
     st.markdown("### 📊 Diversification by Sector")
     
-    # Default sector weights
-    sectors_list = ["Technology", "Finance", "Healthcare", "Retail", "Energy"]
-    sector_weights = [35, 25, 15, 15, 10]
+    # Industry-specific sector weights
+    if selected_portfolio_industry == "All Sectors":
+        sectors_list = ["Technology", "Finance", "Healthcare", "Retail", "Energy", "Real Estate", "Consumer"]
+        sector_weights = [25, 20, 15, 15, 10, 10, 5]
+    else:
+        sectors_list = [selected_portfolio_industry]
+        sector_weights = [100]
+        st.info(f"📌 **Portfolio focused on {selected_portfolio_industry} sector** (100% allocation)")
     
     fig_data = {
         "Sector": sectors_list,
@@ -701,6 +742,27 @@ with tab4:
         st.markdown("**Your Sector Allocation**")
         for sector, weight in zip(sectors_list, sector_weights):
             st.write(f"- **{sector}:** {weight}%")
+    
+    # Show industry-specific stocks if a specific industry is selected
+    if selected_portfolio_industry != "All Sectors":
+        st.markdown(f"### 📍 Top Stocks for {selected_portfolio_industry}")
+        
+        # Get stocks for this specific industry
+        industry_stocks, _ = get_stocks_for_analysis([selected_portfolio_industry])
+        
+        if industry_stocks:
+            stocks_col1, stocks_col2 = st.columns(2)
+            with stocks_col1:
+                st.markdown("**Recommended Long Positions**")
+                for ticker, price in industry_stocks[:3]:
+                    st.info(f"**{ticker}** @ ${price:.2f}")
+            with stocks_col2:
+                st.markdown("**Market Context**")
+                st.write(f"These stocks represent the best long opportunities in the {selected_portfolio_industry} sector based on technical signals and sentiment analysis.")
+        else:
+            st.write(f"No stocks available for {selected_portfolio_industry} sector")
+        
+        st.divider()
     
     st.markdown("### ⚠️ Risk Management Rules (Based on Your Settings)")
     
