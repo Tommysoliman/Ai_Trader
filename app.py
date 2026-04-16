@@ -117,48 +117,48 @@ def get_recommendations_for_sectors(sectors, leverage):
     # Stock database by sector
     sector_stocks = {
         "Technology": [
-            {"ticker": "TSLA", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.12, -0.24], "signal": "Death Cross"},
-            {"ticker": "META", "entry_offset": 0, "stop_offset": 0.08, "targets_offset": [-0.12, -0.23], "signal": "Failed Recovery"},
-            {"ticker": "NVDA", "entry_offset": 0, "stop_offset": 0.08, "targets_offset": [-0.15, -0.32], "signal": "Valuation Extreme"},
-            {"ticker": "AAPL", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.09, -0.17], "signal": "Trend Weakness"},
-            {"ticker": "MSFT", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.08, -0.17], "signal": "Consolidation"}
+            {"ticker": "TSLA", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.12, 0.24], "signal": "Golden Cross"},
+            {"ticker": "META", "entry_offset": 0, "stop_offset": -0.08, "targets_offset": [0.12, 0.23], "signal": "Strong Breakout"},
+            {"ticker": "NVDA", "entry_offset": 0, "stop_offset": -0.08, "targets_offset": [0.15, 0.32], "signal": "Bull Run"},
+            {"ticker": "AAPL", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.17], "signal": "Uptrend Confirmed"},
+            {"ticker": "MSFT", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.17], "signal": "Bullish Resolution"}
         ],
         "Finance": [
-            {"ticker": "JPM", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.10, -0.20], "signal": "Rate Vulnerability"},
-            {"ticker": "GS", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.09, -0.17], "signal": "Trading Weakness"},
-            {"ticker": "BAC", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.09, -0.18], "signal": "Credit Stress"},
-            {"ticker": "WFC", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.09, -0.18], "signal": "Earnings Concern"}
+            {"ticker": "JPM", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.10, 0.20], "signal": "Recovery Rally"},
+            {"ticker": "GS", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.17], "signal": "Trading Strength"},
+            {"ticker": "BAC", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.18], "signal": "Credit Recovery"},
+            {"ticker": "WFC", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.18], "signal": "Earnings Beat"}
         ],
         "Healthcare": [
-            {"ticker": "UNH", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.10, -0.20], "signal": "Regulatory Risk"},
-            {"ticker": "JNJ", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.08, -0.16], "signal": "Patent Cliff"},
-            {"ticker": "PFE", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.08, -0.18], "signal": "Pipeline Risk"},
-            {"ticker": "ABBV", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.08, -0.18], "signal": "M&A Concerns"}
+            {"ticker": "UNH", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.10, 0.20], "signal": "Regulatory Tailwinds"},
+            {"ticker": "JNJ", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.16], "signal": "Strong Pipeline"},
+            {"ticker": "PFE", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.18], "signal": "Pipeline Growth"},
+            {"ticker": "ABBV", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.18], "signal": "M&A Upside"}
         ],
         "Energy": [
-            {"ticker": "XOM", "entry_offset": 0, "stop_offset": 0.10, "targets_offset": [-0.09, -0.20], "signal": "Peak Cycle"},
-            {"ticker": "CVX", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.09, -0.19], "signal": "Supply Glut"},
-            {"ticker": "MPC", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.09, -0.18], "signal": "Margin Pressure"},
-            {"ticker": "COP", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.08, -0.19], "signal": "Production Decline"}
+            {"ticker": "XOM", "entry_offset": 0, "stop_offset": -0.10, "targets_offset": [0.09, 0.20], "signal": "Cycle Bottom"},
+            {"ticker": "CVX", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.19], "signal": "Supply Recovery"},
+            {"ticker": "MPC", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.18], "signal": "Margin Expansion"},
+            {"ticker": "COP", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.19], "signal": "Production Upside"}
         ],
         "Retail": [
-            {"ticker": "AMZN", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.09, -0.20], "signal": "Margin Pressure"},
-            {"ticker": "HD", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.09, -0.19], "signal": "Housing Slowdown"},
-            {"ticker": "NKE", "entry_offset": 0, "stop_offset": 0.08, "targets_offset": [-0.11, -0.23], "signal": "Demand Weakness"},
-            {"ticker": "MCD", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.09, -0.18], "signal": "Labor Cost Risk"},
-            {"ticker": "TJX", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.08, -0.18], "signal": "Inventory Risk"}
+            {"ticker": "AMZN", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.20], "signal": "Margin Recovery"},
+            {"ticker": "HD", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.19], "signal": "Housing Recovery"},
+            {"ticker": "NKE", "entry_offset": 0, "stop_offset": -0.08, "targets_offset": [0.11, 0.23], "signal": "Demand Recovery"},
+            {"ticker": "MCD", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.18], "signal": "Labor Optimization"},
+            {"ticker": "TJX", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.18], "signal": "Inventory Strength"}
         ],
         "Consumer": [
-            {"ticker": "COF", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.09, -0.18], "signal": "Credit Stress"},
-            {"ticker": "GPS", "entry_offset": 0, "stop_offset": 0.08, "targets_offset": [-0.08, -0.20], "signal": "Retail Weakness"},
-            {"ticker": "F", "entry_offset": 0, "stop_offset": 0.08, "targets_offset": [-0.09, -0.18], "signal": "EV Transition"},
-            {"ticker": "GM", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.09, -0.19], "signal": "Supply Chain"}
+            {"ticker": "COF", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.18], "signal": "Credit Strength"},
+            {"ticker": "GPS", "entry_offset": 0, "stop_offset": -0.08, "targets_offset": [0.08, 0.20], "signal": "Retail Recovery"},
+            {"ticker": "F", "entry_offset": 0, "stop_offset": -0.08, "targets_offset": [0.09, 0.18], "signal": "EV Leadership"},
+            {"ticker": "GM", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.19], "signal": "Supply Normalization"}
         ],
         "Real Estate": [
-            {"ticker": "AMT", "entry_offset": 0, "stop_offset": 0.10, "targets_offset": [-0.11, -0.26], "signal": "Rate Pressure"},
-            {"ticker": "PLD", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.09, -0.19], "signal": "Logistics Slowdown"},
-            {"ticker": "SPG", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.08, -0.18], "signal": "Retail Headwinds"},
-            {"ticker": "PSA", "entry_offset": 0, "stop_offset": 0.07, "targets_offset": [-0.08, -0.18], "signal": "Occupancy Risk"}
+            {"ticker": "AMT", "entry_offset": 0, "stop_offset": -0.10, "targets_offset": [0.11, 0.26], "signal": "Rate Tailwinds"},
+            {"ticker": "PLD", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.19], "signal": "Logistics Growth"},
+            {"ticker": "SPG", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.18], "signal": "Retail Recovery"},
+            {"ticker": "PSA", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.18], "signal": "Occupancy Strength"}
         ]
     }
     
@@ -239,32 +239,32 @@ def get_news_for_sectors(sectors):
     """Generate news based on selected sectors"""
     sector_news = {
         "Technology": [
-            {"title": "Tech Giants Report Slowing Growth", "impact": "📉 Bearish", "summary": "Multiple earnings misses suggest market saturation and AI bubble concerns", "short_candidates": "NVDA, META, TSLA"},
-            {"title": "AI Spending Concerns Emerge", "impact": "📉 Bearish", "summary": "Investors question ROI on AI infrastructure investments", "short_candidates": "MSTR, NVDA"}
+            {"title": "Tech Giants Exceed Growth Expectations", "impact": "📈 Bullish", "summary": "Strong earnings growth and AI revenue acceleration driving valuations higher", "long_candidates": "NVDA, META, TSLA"},
+            {"title": "AI Boom Continues with Record Investments", "impact": "📈 Bullish", "summary": "Enterprise AI spending reaches new highs - infrastructure play heating up", "long_candidates": "MSFT, AAPL, GOOGL"}
         ],
         "Finance": [
-            {"title": "Fed Hints at Rate Hold Through 2027", "impact": "📉 Bearish", "summary": "Long-term low rates pressure unleveraged sectors", "short_candidates": "JPM, GS, C"},
-            {"title": "Banking Crisis Fears Return", "impact": "📉 Bearish", "summary": "Regional bank stress signals emerging", "short_candidates": "Regional Banks"}
+            {"title": "Fed Rate Cuts Signal Economic Recovery", "impact": "📈 Bullish", "summary": "Upcoming rate reductions expected to boost financial sector earnings", "long_candidates": "JPM, GS, BAC"},
+            {"title": "Banking Sector Shows Strong Recovery", "impact": "📈 Bullish", "summary": "Net interest margins expand with stabilizing deposit bases", "long_candidates": "WFC, C"}
         ],
         "Healthcare": [
-            {"title": "Pharma Patent Cliffs Accelerate", "impact": "📉 Bearish", "summary": "Major drug expirations brewing", "short_candidates": "JNJ, PFE, ABBV"},
-            {"title": "Healthcare Regulation Tightens", "impact": "📉 Bearish", "summary": "New pricing controls announced", "short_candidates": "UNH, CI"}
+            {"title": "Pharma Pipeline Shows Breakthrough Results", "impact": "📈 Bullish", "summary": "Multiple drug approvals expected - blockbuster candidates advancing", "long_candidates": "JNJ, PFE, ABBV"},
+            {"title": "Healthcare Reform Creates Growth Opportunities", "impact": "📈 Bullish", "summary": "New regulations open market expansion avenues for major players", "long_candidates": "UNH, TMO"}
         ],
         "Energy": [
-            {"title": "Oil Prices Plateau as Demand Softens", "impact": "📉 Bearish", "summary": "Global recession fears weigh on energy", "short_candidates": "XOM, CVX, COP"},
-            {"title": "Renewable Energy Threatens Traditional Oil", "impact": "📉 Bearish", "summary": "Long-term structural decline accelerating", "short_candidates": "Oil ETFs"}
+            {"title": "Oil Prices Rally on Supply Concerns", "impact": "📈 Bullish", "summary": "Geopolitical tensions and production cuts supporting energy prices", "long_candidates": "XOM, CVX, COP"},
+            {"title": "Energy Transition Accelerates Value Creation", "impact": "📈 Bullish", "summary": "Integrated energy companies thriving with mixed portfolios", "long_candidates": "MPC, PSX"}
         ],
         "Retail": [
-            {"title": "Consumer Spending Deteriorates", "impact": "📉 Bearish", "summary": "Retail earnings disappoint across board", "short_candidates": "HD, LOW, NKE"},
-            {"title": "E-commerce Compression Continues", "impact": "📉 Bearish", "summary": "Online retail margins under pressure", "short_candidates": "AMZN, EBAY"}
+            {"title": "Consumer Spending Accelerates Post-Crisis", "impact": "📈 Bullish", "summary": "Holiday sales beat expectations - retail confidence surging", "long_candidates": "HD, NKE, TJX"},
+            {"title": "E-commerce Leaders Reporting Margin Expansion", "impact": "📈 Bullish", "summary": "Operating leverage kicking in as scale increases", "long_candidates": "AMZN, MCD"}
         ],
         "Real Estate": [
-            {"title": "Commercial Real Estate Crisis Deepens", "impact": "📉 Bearish", "summary": "Office vacancy rates hit record highs", "short_candidates": "REIT ETFs"},
-            {"title": "Interest Rate Pain for Property Owners", "impact": "📉 Bearish", "summary": "Rising rates crush real estate valuations", "short_candidates": "AMT, PLD"}
+            {"title": "Commercial Real Estate Market Stabilizing", "impact": "📈 Bullish", "summary": "Quality properties commanding premium valuations in recovery", "long_candidates": "AMT, PLD"},
+            {"title": "REITs Rally on Interest Rate Expectations", "impact": "📈 Bullish", "summary": "Lower rates improving capitalization rates and valuations", "long_candidates": "SPG, PSA"}
         ],
         "Consumer": [
-            {"title": "Consumer Confidence Index Plummets", "impact": "📉 Bearish", "summary": "Households cutting back spending", "short_candidates": "XRT, IYC"},
-            {"title": "Credit Card Delinquencies Rise", "impact": "📉 Bearish", "summary": "Consumer stress mounting", "short_candidates": "COF, AXP"}
+            {"title": "Consumer Confidence Index Soars", "impact": "📈 Bullish", "summary": "Households confident in economic outlook - spending accelerating", "long_candidates": "COF, GPS"},
+            {"title": "Credit Quality Improves Across Board", "impact": "📈 Bullish", "summary": "Default rates declining - consumer health strengthening", "long_candidates": "AXP, DFS"}
         ]
     }
     
@@ -436,7 +436,7 @@ st.markdown("---")
 tab1, tab2, tab3, tab4 = st.tabs([
     "📰 News Analysis",
     "📊 Stock Analysis",
-    "💰 Short Recommendations",
+    "💰 Long Recommendations",
     "📈 Portfolio Strategy"
 ])
 
@@ -445,7 +445,7 @@ with tab1:
     st.header("📰 Market News Analysis")
     st.markdown("""
     This section provides latest market news and sentiment analysis affecting US stocks.
-    The News Researcher (10 years) and News Manager (20 years) collaborate to identify bearish signals.
+    The News Researcher (10 years) and News Manager (20 years) collaborate to identify bullish signals.
     """)
     
     col1, col2 = st.columns(2)
@@ -602,14 +602,14 @@ with tab2:
         
         st.markdown("#### Technical Breakdown")
         sector_display = current_sectors[0] if (current_sectors and current_sectors[0] != "All Sectors") else "market"
-        st.write(f"Stock {selected_stock} shows multiple bearish signals based on {sector_display} sector analysis...")
+        st.write(f"Stock {selected_stock} shows multiple bullish signals based on {sector_display} sector analysis...")
     
     st.info(f"📌 **Analyzed Sectors:** {', '.join(current_sectors)}")
 
-# ==================== TAB 3: SHORT RECOMMENDATIONS ====================
+# ==================== TAB 3: LONG RECOMMENDATIONS ====================
 with tab3:
-    st.header("💰 Short CFD Recommendations")
-    st.markdown("Curated short positions based on collaborative multi-agent analysis")
+    st.header("💰 Top Long CFD Opportunities")
+    st.markdown("Curated long positions based on collaborative multi-agent analysis")
     
     # Get current parameters with defaults
     if st.session_state.analysis_params:
