@@ -1,6 +1,36 @@
 import pytz
 from datetime import datetime
 from typing import Dict
+import yfinance as yf
+import streamlit as st
+
+def get_current_stock_price(ticker):
+    """
+    Fetch current stock price from Yahoo Finance
+    Returns price or None if not available
+    """
+    try:
+        stock = yf.Ticker(ticker)
+        data = stock.history(period='1d')
+        if data.empty:
+            return None
+        current_price = data['Close'].iloc[-1]
+        return float(current_price)
+    except Exception as e:
+        print(f"Error fetching {ticker}: {e}")
+        return None
+
+@st.cache_data(ttl=300)  # Cache for 5 minutes
+def get_multiple_stock_prices(tickers):
+    """
+    Fetch current prices for multiple stocks
+    Returns dict with ticker: price mapping
+    """
+    prices = {}
+    for ticker in tickers:
+        price = get_current_stock_price(ticker)
+        prices[ticker] = price if price else 0
+    return prices
 
 def get_us_and_egyptian_time() -> Dict[str, str]:
     """
