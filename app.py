@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import pandas as pd
 from dotenv import load_dotenv
 from utils import (format_time_display, get_us_and_egyptian_time, get_current_stock_price, 
                    get_multiple_stock_prices, fetch_financial_news_24h, get_latest_market_alerts,
@@ -55,7 +56,7 @@ st.markdown("""
 
 # Sidebar
 with st.sidebar:
-    st.image("https://via.placeholder.com/150x50?text=AI+Traders", use_column_width=True)
+    st.image("https://via.placeholder.com/150x50?text=AI+Traders", use_column_width=False)
     st.divider()
     st.markdown("### 👥 Agent Team")
     st.markdown("""
@@ -526,9 +527,6 @@ with tab2:
             """)
     
     st.markdown("### Stock Screening Results")
-    
-    # Create dynamic analysis table
-    import pandas as pd
     
     # Industry selector dropdown
     industries = ["All Sectors", "Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
