@@ -484,10 +484,20 @@ with tab1:
             if news_items:
                 # Display the first 2 news items as 2-sentence summaries
                 for idx, item in enumerate(news_items[:2], 1):
-                    sentiment_emoji = item['impact']
-                    st.markdown(f"**{idx}. {item['title']}** {sentiment_emoji}")
-                    st.markdown(f"*{item['summary'][:150]}...*")
-                    st.caption(f"📍 {item['long_candidates']} | Sentiment: {item.get('sentiment', 0)}")
+                    # Determine sentiment from title/summary keywords
+                    title_summary = (item.get('title', '') + ' ' + item.get('summary', '')).lower()
+                    if any(word in title_summary for word in ['surge', 'jump', 'rally', 'beat', 'growth', 'strong']):
+                        impact = "📈 Bullish"
+                    elif any(word in title_summary for word in ['plunge', 'drop', 'crash', 'decline', 'weak']):
+                        impact = "📉 Bearish"
+                    else:
+                        impact = "➡️ Neutral"
+                    
+                    st.markdown(f"**{idx}. {item.get('title', 'Market Update')}** {impact}")
+                    summary = item.get('summary', item.get('description', 'Latest market update'))
+                    st.markdown(f"*{summary[:150] if summary else 'No details available'}...*")
+                    source = item.get('source', 'Financial News')
+                    st.caption(f"📊 Source: {source}")
                     
                     if idx < 2:
                         st.divider()
