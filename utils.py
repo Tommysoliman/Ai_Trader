@@ -80,12 +80,16 @@ def fetch_financial_news_24h(query: str = "stock market", limit: int = 5) -> Lis
     Searches Financial Times, Economist, and major financial sources
     """
     try:
-        # Get API key from environment
-        news_api_key = getenv("NEWSAPI_KEY", "")
+        # Try to get API key from Streamlit secrets first (for cloud deployment)
+        # Then fall back to environment variable (for local development)
+        try:
+            news_api_key = st.secrets.get("NEWSAPI_KEY", "")
+        except:
+            news_api_key = getenv("NEWSAPI_KEY", "")
         
-        if not news_api_key:
-            # Fallback to public news API without key (limited requests)
-            news_api_key = "test"
+        if not news_api_key or news_api_key == "test":
+            print(f"⚠️ NewsAPI key not found. Set NEWSAPI_KEY in environment or Streamlit Cloud secrets.")
+            return []
         
         # Calculate 24 hours ago
         date_from = (datetime.utcnow() - timedelta(days=1)).isoformat()
