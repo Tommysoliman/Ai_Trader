@@ -1,7 +1,8 @@
 import streamlit as st
 import os
 from dotenv import load_dotenv
-from utils import format_time_display, get_us_and_egyptian_time, get_current_stock_price, get_multiple_stock_prices
+from utils import (format_time_display, get_us_and_egyptian_time, get_current_stock_price, 
+                   get_multiple_stock_prices, fetch_financial_news_24h, get_latest_market_alerts)
 from datetime import datetime
 import time
 
@@ -366,19 +367,20 @@ def get_stocks_for_analysis(sectors):
     return result_stocks, sector_stocks
 
 def get_alerts_and_notifications():
-    """Generate dynamic alerts and notifications"""
-    alerts = [
-        {"type": "warning", "title": "⚠️ ROKU Near Stop Loss", "message": "ROKU approaching stop at $125.50 (-11% from entry)", "time": "2 minutes ago"},
-        {"type": "success", "title": "📈 Profit Target Hit", "message": "META exceeded 1st target at $175.40 - Consider taking profits on 25%", "time": "5 minutes ago"},
-        {"type": "info", "title": "📊 VIX Alert", "message": "VIX above 30 - Position spike risk detected. Consider tighter stops", "time": "8 minutes ago"},
-        {"type": "warning", "title": "⚡ TSLA Volatility", "message": "TSLA experiencing 3.5% intraday swing. Monitor for breakouts", "time": "12 minutes ago"},
-        {"type": "success", "title": "💰 Position Update", "message": "JPM down 2.1% - Short entry confirmed. Monitor for bounce", "time": "15 minutes ago"},
+    """Generate dynamic alerts based on real market data and financial news"""
+    # Get real market-based alerts
+    top_tickers = ["TSLA", "META", "NVDA", "AAPL", "MSFT", "JPM", "GS", "UNH", "JNJ", "XOM"]
+    alerts = get_latest_market_alerts(top_tickers)
+    
+    return alerts if alerts else [
+        {"type": "info", "title": "📊 Market Data Loading", "message": "Fetching latest prices and news...", "time": "2 min ago"},
+        {"type": "success", "title": "✅ System Ready", "message": "Long CFD analysis engine active", "time": "5 min ago"},
+        {"type": "info", "title": "🔄 Data Refresh", "message": "Alerts update every 2 minutes", "time": "8 min ago"},
     ]
-    return alerts
 
 # Main Content
-st.title("🤖 AI Traders - Intelligent Short CFD Recommendation System")
-st.markdown("*Powered by CrewAI - Multi-Agent Market Analysis*")
+st.title("🤖 AI Traders - Intelligent Long CFD Recommendation System")
+st.markdown("*Powered by CrewAI - Multi-Agent Market Analysis with Real News & Prices*")
 
 # Time Display Section
 st.markdown("---")
