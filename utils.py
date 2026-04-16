@@ -88,7 +88,7 @@ def fetch_financial_news_24h(query: str = "stock market", limit: int = 5) -> Lis
             news_api_key = getenv("NEWSAPI_KEY", "")
         
         if not news_api_key or news_api_key == "test":
-            print(f"⚠️ NewsAPI key not found. Showing sample data.")
+            print(f"WARNING: NewsAPI key not found. Showing sample data.")
             return get_sample_news(query, limit)
         
         # Calculate 24 hours ago
@@ -115,7 +115,7 @@ def fetch_financial_news_24h(query: str = "stock market", limit: int = 5) -> Lis
             
             # If no articles found, return sample data
             if not articles:
-                print(f"ℹ️ No articles found for query: {query}. Showing sample data.")
+                print(f"INFO: No articles found for query: {query}. Showing sample data.")
                 return get_sample_news(query, limit)
             
             # Format articles for display
@@ -132,7 +132,7 @@ def fetch_financial_news_24h(query: str = "stock market", limit: int = 5) -> Lis
             
             return formatted_news
         else:
-            print(f"NewsAPI Error: {response.status_code} - {response.text[:100]}")
+            print(f"ERROR: NewsAPI returned {response.status_code}. Using sample data.")
             return get_sample_news(query, limit)
             
     except Exception as e:
