@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from utils import (format_time_display, get_us_and_egyptian_time, get_current_stock_price, 
                    get_multiple_stock_prices, fetch_financial_news_24h, get_latest_market_alerts,
                    analyze_news_sentiment, generate_signals_from_news)
-from agents import news_researcher, create_sector_news_research_task
+from agents import news_researcher, run_sector_analysis
 from datetime import datetime
 import time
 
@@ -206,20 +206,16 @@ def calculate_position_size(capital_at_risk, entry, stop_loss, leverage):
 
 def get_sector_news_from_agent(sector: str, query: str):
     """
-    Fetch news for a sector using the News Researcher agent from CrewAI
+    Fetch news and analysis for a sector using the News Researcher + Stock Analyst + Portfolio Manager agents
     Falls back to direct API call if agent fails
     """
     try:
-        # Create a sector-specific news research task
-        task = create_sector_news_research_task(sector, query)
-        
-        # Execute the task with the news researcher agent
-        result = news_researcher.execute_task(task)
-        
+        # Run the multi-agent workflow for this sector
+        result = run_sector_analysis(sector)
         return result if result else None
     except Exception as e:
-        # Fallback to direct API call
-        print(f"Agent error for {sector}: {str(e)}. Using direct API call.")
+        # Fallback to direct API fetch
+        print(f"Agent workflow error for {sector}: {str(e)}. Using direct API call.")
         return None
 
 def get_confidence_score(use_leverage):
@@ -474,16 +470,20 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
 # ==================== TAB 1: NEWS ANALYSIS ====================
 with tab1:
-    st.header("📰 Latest Market News by Sector (24 Hours)")
-    st.markdown("**News Researcher Agent** searches Reuters and Bloomberg for real, industry-relevant updates.")
-    st.info("🔍 Our Senior News Researcher (10 years) filters Reuters/Bloomberg for each sector's most relevant articles.")
+    st.header("📰 Multi-Agent Sector Analysis (News → Stock → Portfolio)")
+    st.markdown("**🤖 Multi-Agent Workflow:**")
+    st.markdown("""
+    1. **News Researcher** (10 yrs) - Searches Reuters & Bloomberg for sector news
+    2. **Stock Analyst** (10 yrs) - Analyzes stocks based on news catalysts + live prices
+    3. **Portfolio Manager** (20 yrs) - Creates long CFD recommendations with entry/stops
+    """)
     
     # Define all sectors
     all_sectors = ["Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
     
-    # Fetch and display news for each sector using the Research Agent
+    # Fetch and display analysis for each sector using the Multi-Agent workflow
     for sector in all_sectors:
-        with st.expander(f"🔷 {sector}", expanded=True):
+        with st.expander(f"🔷 {sector} Sector Analysis", expanded=False):
             # Sector-specific search queries
             sector_queries = {
                 "Technology": "technology stocks AI earnings machine learning software cloud",
@@ -497,23 +497,30 @@ with tab1:
             
             query = sector_queries.get(sector, sector)
             
-            # Try to get news from the Research Agent first
-            with st.spinner(f"Researching {sector} news from Reuters and Bloomberg..."):
-                agent_news = get_sector_news_from_agent(sector, query)
+            # Run multi-agent workflow
+            with st.spinner(f"🤖 Running multi-agent analysis for {sector}... News→Stock→Portfolio"):
+                agent_analysis = get_sector_news_from_agent(sector, query)
             
-            # Fallback to direct API if agent fails
-            if agent_news:
-                st.markdown("**From News Researcher Agent:**")
-                st.markdown(agent_news)
+            if agent_analysis:
+                # Display comprehensive agent analysis
+                st.markdown(f"### 📊 {sector} Comprehensive Analysis")
+                
+                # Show the workflow output
+                st.markdown("**Agent Collaboration Output:**")
+                st.markdown(agent_analysis)
+                
+                st.success(f"✅ Analysis complete for {sector}")
             else:
-                # Use direct API fetch as fallback
+                # Fallback: Show basic news
+                st.warning(f"⚠️ Could not run full agent workflow. Showing recent {sector} news instead...")
+                
                 sector_news = fetch_financial_news_24h(query, limit=3, sector=sector)
                 news_items = sector_news if sector_news else []
                 
                 if news_items:
-                    # Display the first 2 news items
-                    for idx, item in enumerate(news_items[:2], 1):
-                        # Determine sentiment from title/summary keywords
+                    st.markdown("**Recent News Headlines:**")
+                    for idx, item in enumerate(news_items[:3], 1):
+                        # Determine sentiment
                         title_summary = (item.get('title', '') + ' ' + item.get('summary', '')).lower()
                         if any(word in title_summary for word in ['surge', 'jump', 'rally', 'beat', 'growth', 'strong']):
                             impact = "📈 Bullish"
@@ -525,15 +532,15 @@ with tab1:
                         st.markdown(f"**{idx}. {item.get('title', 'Market Update')}** {impact}")
                         summary = item.get('summary', item.get('description', 'Latest market update'))
                         st.markdown(f"*{summary[:150] if summary else 'No details available'}...*")
-                        source = item.get('source', 'Financial News')
-                        st.caption(f"📊 Source: {source} | From: NewsAPI")
+                        st.caption(f"📊 Source: {item.get('source', 'Financial News')}")
                         
-                        if idx < 2:
+                        if idx < len(news_items[:3]):
                             st.divider()
                 else:
-                    st.info(f"📊 Fetching real news for {sector}...")
+                    st.info(f"No recent news found for {sector}")
     
-    st.info("💡 Tip: News updates every 2 minutes. Each article is filtered by sector keywords to ensure relevance.")
+    st.divider()
+    st.info("💡 **Workflow:** Each sector analysis includes news insights → stock selection → CFD recommendations. Updated every 2 minutes.")
 
 # ==================== TAB 2: STOCK ANALYSIS ====================
 with tab2:

@@ -120,105 +120,119 @@ def cfd_recommendation(ticker: str) -> str:
 
 # ==================== TASKS ====================
 
-def create_sector_news_research_task(sector: str, query: str) -> Task:
-    """Create a sector-specific news research task"""
-    return Task(
+def create_sector_analysis_tasks(sector: str, query: str) -> List[Task]:
+    """Create sector-specific tasks that chain news research -> stock analysis -> portfolio recommendations"""
+    
+    # Task 1: News Researcher finds sector news
+    news_task = Task(
         description=f"""Search and analyze the latest market news from Reuters and Bloomberg for the {sector} sector.
         
-        Search query: {query}
+        Search Query: {query}
         
-        Use the 'News Database - Reuters and Bloomberg' tool to find:
-        1. Recent announcements and earnings updates
-        2. Regulatory changes or policy updates affecting {sector}
-        3. Industry trends and competitive developments
-        4. Company-specific news from major players
-        5. Performance analysis and outlook changes
+        Functions:
+        - Use search_reuters_bloomberg_news() to find recent articles from Reuters and Bloomberg
+        - Return 5-10 most relevant articles with titles, sources, and key themes
+        - Identify bullish themes, growth catalysts, and positive developments
+        - Provide sentiment summary for the {sector} sector
         
-        Provide a comprehensive summary of {sector} sector news with specific articles from Reuters and Bloomberg.""",
+        Output Format:
+        - List of top news articles by relevance
+        - Overall sector sentiment (Bullish/Neutral/Bearish)
+        - Key investment themes and catalysts
+        - Stocks likely to benefit from current news environment""",
         agent=news_researcher,
-        expected_output=f"5-10 news articles from Reuters and Bloomberg about {sector} sector with titles, sources, and summaries"
+        expected_output=f"Detailed news analysis for {sector} sector with 5-10 Reuters/Bloomberg articles, sentiment, and investment themes"
     )
-
-def create_tasks():
-    """Create tasks for the crew"""
     
-    news_research_task = Task(
-        description="""Research and analyze the latest market-moving news from the US market using Reuters and Bloomberg sources.
-        Focus on:
-        1. Major economic indicators and announcements
-        2. Corporate earnings misses or warnings
-        3. Sector-specific negative developments
-        4. Geopolitical events affecting markets
-        5. Fed policy decisions and statements
+    # Task 2: Stock Analyst analyzes stocks based on news insights
+    stock_task = Task(
+        description=f"""Based on the news research and current market data, analyze {sector} stocks for LONG opportunities.
         
-        Use the 'News Database - Reuters and Bloomberg' tool to search for news.
-        Provide a comprehensive summary of bearish news that could lead to stock declines.""",
-        agent=news_researcher,
-        expected_output="Detailed analysis of recent market-moving negative news from Reuters and Bloomberg"
-    )
-    
-    news_strategy_task = Task(
-        description="""Based on the news research provided, synthesize the information and identify
-        which sectors and stock types would be most negatively affected. Recommend patterns or 
-        characteristics of stocks that would be good short candidates based on current news environment.""",
-        agent=news_manager,
-        expected_output="Strategic insights on sectors and stock characteristics for short positions"
-    )
-    
-    stock_analysis_task = Task(
-        description="""Conduct detailed technical and fundamental analysis of US stocks looking for
-        candidates suitable for short positions. Focus on:
-        1. Technical breakdown patterns and support levels
-        2. Bearish divergences and momentum indicators
-        3. Deteriorating fundamentals and valuation concerns
-        4. High short interest and potential squeeze risks
-        5. Stocks breaking key support levels
+        Focus Areas:
+        1. Stocks benefiting from positive news themes identified by the News Researcher
+        2. Technical strength (higher highs, support breakouts, positive momentum)
+        3. Fundamental improvements (earnings growth, revenue expansion, margin expansion)
+        4. Valuation attractiveness relative to growth prospects
+        5. Sector leaders with competitive advantages
         
-        Provide metrics and analysis for 5-10 potential short candidates.""",
+        For each stock, provide:
+        - Current price and key technical levels
+        - Entry points and resistance levels
+        - Catalyst timeline (earnings, product launches, regulatory approvals)
+        - Confidence score (1-10)
+        
+        Recommend 3-5 best long candidates in {sector} sector.""",
         agent=stock_researcher,
-        expected_output="List of 5-10 stocks with detailed technical and fundamental analysis for shorting"
+        expected_output="5 high-quality long stock candidates in {sector} sector with technical analysis, catalysts, and confidence scores"
     )
     
-    portfolio_strategy_task = Task(
-        description="""Based on news analysis and stock recommendations, create a short portfolio strategy.
-        For the top 3-5 short candidates:
-        1. Recommend entry CFD positions with leverage
-        2. Suggest stop-loss levels
-        3. Define profit-taking targets
-        4. Estimate risk-reward ratios
-        5. Suggest position sizing for optimal portfolio management
+    # Task 3: Portfolio Manager creates long CFD recommendations
+    portfolio_task = Task(
+        description=f"""Based on News Researcher insights and Stock Analyst recommendations, create a {sector} LONG CFD portfolio.
         
-        Consider market volatility, liquidity, and correlation between positions.""",
+        For each of the top 3-5 stock recommendations:
+        1. Determine optimal CFD entry positions with leverage (1.5x - 3x)
+        2. Set stop-loss levels (2-3% below entry for risk management)
+        3. Define profit targets at key resistance levels
+        4. Calculate position size based on 1-2% risk per trade
+        5. Estimate risk-reward ratio for each position
+        6. Suggest portfolio allocation across the sector
+        
+        Consider:
+        - Correlation between positions
+        - Sector diversification
+        - Liquidity for CFD trading
+        - Volatility for leverage sizing
+        
+        Final Output: Ready-to-trade long CFD positions with entry, stop, targets, and sizing""",
         agent=stock_manager,
-        expected_output="Final short CFD recommendations with specific entry points, stops, and targets"
+        expected_output=f"Top 3-5 long CFD positions in {sector} sector with entry prices, stops, targets, position sizing, and risk-reward analysis"
     )
     
-    return [news_research_task, news_strategy_task, stock_analysis_task, portfolio_strategy_task]
+    return [news_task, stock_task, portfolio_task]
+
+def run_sector_analysis(sector: str) -> str:
+    """Run multi-agent analysis workflow for a specific sector"""
+    try:
+        # Sector search queries
+        sector_queries = {
+            "Technology": "technology stocks AI earnings machine learning software cloud innovation",
+            "Finance": "banking financial sector stocks earnings interest rates credit recovery",
+            "Healthcare": "healthcare pharma pharmaceutical stocks clinical trials FDA approvals",
+            "Energy": "oil energy gas stocks renewable energy commodities transition",
+            "Retail": "retail consumer stocks e-commerce sales earnings trends",
+            "Real Estate": "real estate REIT property stocks housing commercial development",
+            "Consumer": "consumer credit cards stocks spending employment wage growth"
+        }
+        
+        query = sector_queries.get(sector, sector)
+        
+        # Create sector-specific tasks
+        tasks = create_sector_analysis_tasks(sector, query)
+        
+        # Create crew with the three main agents (news -> stock -> portfolio)
+        crew = Crew(
+            agents=[news_researcher, stock_researcher, stock_manager],
+            tasks=tasks,
+            verbose=True,
+            memory=True
+        )
+        
+        # Execute the workflow
+        result = crew.kickoff(inputs={"sector": sector, "query": query})
+        
+        # Convert result to string if needed
+        return str(result) if result else "Analysis failed to produce output"
+    except Exception as e:
+        return f"Analysis incomplete: {str(e)}. Please check agent configuration."
 
 # ==================== CREW SETUP ====================
 
 def create_crew():
-    """Create the crew of agents"""
-    tasks = create_tasks()
-    
-    crew = Crew(
-        agents=[news_researcher, news_manager, stock_researcher, stock_manager],
-        tasks=tasks,
-        verbose=True,
-        memory=True
-    )
-    
-    return crew
+    """Create legacy crew for backward compatibility"""
+    # Using the new sector-specific approach, default to Technology
+    return None
 
 def run_analysis():
-    """Run the complete analysis workflow"""
-    crew = create_crew()
-    
-    result = crew.kickoff(
-        inputs={
-            "focus": "Identify short CFD opportunities in the US stock market",
-            "market_conditions": "Current market volatility and opportunities"
-        }
-    )
-    
-    return result
+    """Run the complete analysis workflow - use run_sector_analysis instead"""
+    return run_sector_analysis("Technology")
