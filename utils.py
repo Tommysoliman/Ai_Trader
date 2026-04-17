@@ -123,21 +123,31 @@ def fetch_financial_news_24h(query: str = "stock market", limit: int = 5, sector
                 print(f"INFO: No articles found for query: {query}. Showing sample data.")
                 return get_sample_news(query, limit)
             
-            # Filter articles for sector relevance
+            # Filter articles for sector relevance with STRICT filtering
             sector_keywords = get_sector_keywords(sector)
             filtered_articles = []
+            excluded_sectors = get_exclusion_keywords(sector)
             
             for article in articles:
                 title_lower = article.get("title", "").lower()
                 summary_lower = article.get("description", "").lower()
                 combined_text = title_lower + " " + summary_lower
                 
-                # Check if article contains sector keywords
-                if any(keyword in combined_text for keyword in sector_keywords):
+                # REQUIRE at least 2 sector keywords OR 1 primary keyword
+                primary_keywords = get_primary_keywords(sector)
+                matches = sum(1 for keyword in sector_keywords if keyword in combined_text)
+                has_primary = any(keyword in combined_text for keyword in primary_keywords)
+                has_excluded = any(keyword in combined_text for keyword in excluded_sectors)
+                
+                # Include if: (multiple matches OR has primary keyword) AND NOT excluded
+                if (matches >= 2 or has_primary) and not has_excluded:
                     filtered_articles.append(article)
             
-            # Use filtered articles if found, otherwise use all articles
-            articles_to_use = filtered_articles if filtered_articles else articles
+            # Use filtered articles if found, otherwise use sample data (not all articles)
+            if filtered_articles:
+                articles_to_use = filtered_articles
+            else:
+                return get_sample_news_for_sector(sector, limit)
             
             # Format articles for display
             formatted_news = []
@@ -173,6 +183,67 @@ def get_sector_keywords(sector: str) -> List[str]:
     }
     
     return sector_keywords_map.get(sector, [])
+
+def get_primary_keywords(sector: str) -> List[str]:
+    """Get PRIMARY keywords - at least one must appear for strong sector match"""
+    primary_map = {
+        "Technology": ["tech", "semiconductor", "ai", "nvidia", "apple", "microsoft", "google"],
+        "Finance": ["bank", "federal reserve", "fed", "interest rate", "jpmorgan", "goldman"],
+        "Healthcare": ["pharma", "pharmaceutical", "fda", "vaccine", "biotech", "clinical"],
+        "Energy": ["oil", "gas", "energy", "renewable", "exxon", "shell"],
+        "Retail": ["retail", "e-commerce", "amazon", "walmart", "target"],
+        "Real Estate": ["real estate", "reit", "property", "housing"],
+        "Consumer": ["consumer", "credit card", "employment", "spending"]
+    }
+    return primary_map.get(sector, [])
+
+def get_exclusion_keywords(sector: str) -> List[str]:
+    """Get keywords to EXCLUDE from other sectors"""
+    exclusions = {
+        "Technology": ["pharma", "drug", "oil", "gas", "retail", "bank", "credit"],
+        "Finance": ["pharma", "oil", "gas", "tech", "ai", "semiconductor"],
+        "Healthcare": ["tech", "oil", "gas", "retail", "bank", "credit"],
+        "Energy": ["pharma", "tech", "bank", "credit", "retail"],
+        "Retail": ["pharma", "oil", "gas", "tech", "bank"],
+        "Real Estate": ["pharma", "oil", "tech", "bank", "retail"],
+        "Consumer": ["pharma", "oil", "gas", "tech"]
+    }
+    return exclusions.get(sector, [])
+
+def get_sample_news_for_sector(sector: str, limit: int) -> List[Dict]:
+    """Return sample news data specific to the selected sector"""
+    sample_data = {
+        "Technology": [
+            {"title": "AI Revolution: Tech Giants Report Record Earnings", "summary": "Strong AI-driven revenue growth", "source": "Bloomberg", "url": "#", "published_at": datetime.now().isoformat(), "image": ""},
+            {"title": "NVIDIA Leads AI Chip Race", "summary": "GPU demand accelerates", "source": "Reuters", "url": "#", "published_at": datetime.now().isoformat(), "image": ""}
+        ],
+        "Finance": [
+            {"title": "Fed Signals Rate Cuts Ahead", "summary": "Banking sector rallies", "source": "CNBC", "url": "#", "published_at": datetime.now().isoformat(), "image": ""},
+            {"title": "JPMorgan Reports Strong Results", "summary": "Margins widen on stable deposits", "source": "MarketWatch", "url": "#", "published_at": datetime.now().isoformat(), "image": ""}
+        ],
+        "Healthcare": [
+            {"title": "Drug Advances to Phase 3 Trials", "summary": "Pharma stock surges on success", "source": "Reuters", "url": "#", "published_at": datetime.now().isoformat(), "image": ""},
+            {"title": "FDA Approves New Cancer Treatment", "summary": "Healthcare sector growth continues", "source": "CNBC", "url": "#", "published_at": datetime.now().isoformat(), "image": ""}
+        ],
+        "Energy": [
+            {"title": "Oil Prices Rally on Supply Concerns", "summary": "Crude above $80/barrel", "source": "Bloomberg", "url": "#", "published_at": datetime.now().isoformat(), "image": ""},
+            {"title": "Renewable Energy Surges Globally", "summary": "Clean energy stocks rise", "source": "Reuters", "url": "#", "published_at": datetime.now().isoformat(), "image": ""}
+        ],
+        "Retail": [
+            {"title": "Amazon Reports E-Commerce Growth", "summary": "Online expansion drives gains", "source": "Bloomberg", "url": "#", "published_at": datetime.now().isoformat(), "image": ""},
+            {"title": "Walmart Expands Stores", "summary": "Consumer spending remains strong", "source": "Reuters", "url": "#", "published_at": datetime.now().isoformat(), "image": ""}
+        ],
+        "Real Estate": [
+            {"title": "Housing Market Shows Resilience", "summary": "REITs report strong demand", "source": "Bloomberg", "url": "#", "published_at": datetime.now().isoformat(), "image": ""},
+            {"title": "Commercial Property Values Stabilize", "summary": "Diversified holdings benefit", "source": "Reuters", "url": "#", "published_at": datetime.now().isoformat(), "image": ""}
+        ],
+        "Consumer": [
+            {"title": "Consumer Spending Remains Strong", "summary": "Credit card usage solid", "source": "CNBC", "url": "#", "published_at": datetime.now().isoformat(), "image": ""},
+            {"title": "Employment Supports Confidence", "summary": "Jobs stable, spending grows", "source": "Bloomberg", "url": "#", "published_at": datetime.now().isoformat(), "image": ""}
+        ]
+    }
+    sector_news = sample_data.get(sector, sample_data.get("Technology", []))
+    return sector_news[:limit]
 
 def get_sample_news(query: str, limit: int) -> List[Dict]:
     """
