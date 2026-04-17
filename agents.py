@@ -4,6 +4,7 @@ import requests
 import json
 from typing import List, Dict
 import streamlit as st
+from newsapi import NewsApiClient
 
 # Initialize agents with specific roles and expertise levels
 
@@ -80,6 +81,217 @@ def get_yahoo_finance_news(ticker: str) -> str:
         return news_summary
     except Exception as e:
         return f"Error fetching Yahoo Finance news for {ticker}: {str(e)}"
+
+def get_industry_top_headlines(sector: str) -> str:
+    """Fetch top headlines for a specific industry using NewsAPI"""
+    try:
+        from newsapi import NewsApiClient
+        
+        api_key = ""
+        try:
+            api_key = st.secrets.get("NEWSAPI_KEY", "")
+        except Exception:
+            api_key = os.getenv("NEWSAPI_KEY", "")
+        
+        if not api_key:
+            return f"API Key not found for {sector}"
+        
+        newsapi = NewsApiClient(api_key=api_key)
+        
+        # Define industry-specific sources and categories
+        industry_config = {
+            "Technology": {
+                "sources": "techcrunch,the-verge,wired",
+                "category": "technology",
+                "query": "technology AI software cloud"
+            },
+            "Finance": {
+                "sources": "bloomberg,cnbc,financial-times",
+                "category": "business",
+                "query": "banking finance stocks markets"
+            },
+            "Healthcare": {
+                "sources": "bbc-health,medical-news-today",
+                "category": "health",
+                "query": "healthcare pharma clinical trials FDA"
+            },
+            "Energy": {
+                "sources": "bbc-news,reuters",
+                "category": "business",
+                "query": "oil energy renewable commodities"
+            },
+            "Retail": {
+                "sources": "cnn,bbc-news",
+                "category": "business",
+                "query": "retail consumer e-commerce shopping"
+            },
+            "Real Estate": {
+                "sources": "cnbc,financial-times",
+                "category": "business",
+                "query": "real estate property housing REIT"
+            },
+            "Consumer": {
+                "sources": "cnbc,bbc-news",
+                "category": "business",
+                "query": "consumer credit spending employment"
+            }
+        }
+        
+        config = industry_config.get(sector, {
+            "sources": "bbc-news",
+            "category": "business",
+            "query": sector
+        })
+        
+        # Fetch top headlines
+        headlines = newsapi.get_top_headlines(
+            q=config["query"],
+            sources=config["sources"],
+            category=config["category"],
+            language='en',
+            country='us'
+        )
+        
+        if headlines.get("status") == "ok" and headlines.get("articles"):
+            articles = headlines.get("articles", [])
+            summary = f"**🔴 TOP HEADLINES - {sector}**\n"
+            summary += f"(Found {len(articles)} breaking news items)\n\n"
+            
+            for idx, article in enumerate(articles[:8], 1):
+                title = article.get("title", f"Industry: {sector}")
+                source = article.get("source", {}).get("name", "Unknown")
+                desc = article.get("description", "")
+                published = article.get("publishedAt", "").split("T")[0]
+                summary += f"**{idx}. 🔥 {title}**\n"
+                summary += f"   📰 {source} | {published}\n"
+                summary += f"   {desc[:100] if desc else 'No details'}...\n\n"
+            
+            return summary
+        else:
+            return f"No top headlines found for {sector}"
+    except Exception as e:
+        return f"Error fetching top headlines: {str(e)}"
+
+def get_industry_everything_articles(sector: str) -> str:
+    """Fetch comprehensive articles for a specific industry using NewsAPI everything endpoint"""
+    try:
+        from newsapi import NewsApiClient
+        from datetime import datetime, timedelta
+        
+        api_key = ""
+        try:
+            api_key = st.secrets.get("NEWSAPI_KEY", "")
+        except Exception:
+            api_key = os.getenv("NEWSAPI_KEY", "")
+        
+        if not api_key:
+            return f"API Key not found for {sector}"
+        
+        newsapi = NewsApiClient(api_key=api_key)
+        
+        # Define industry-specific domains and queries
+        industry_config = {
+            "Technology": {
+                "domains": "techcrunch.com,theverge.com,wired.com,arstechnica.com",
+                "query": "technology stocks AI machine learning",
+                "sort": "relevancy"
+            },
+            "Finance": {
+                "domains": "bloomberg.com,cnbc.com,ft.com,wsj.com",
+                "query": "banking financial stocks market earnings",
+                "sort": "relevancy"
+            },
+            "Healthcare": {
+                "domains": "bbc.co.uk,reuters.com,healthline.com",
+                "query": "healthcare pharma clinical trials FDA approvals",
+                "sort": "relevancy"
+            },
+            "Energy": {
+                "domains": "reuters.com,bloomberg.com,oilprice.com",
+                "query": "oil energy gas renewable commodities",
+                "sort": "relevancy"
+            },
+            "Retail": {
+                "domains": "cnbc.com,reuters.com,bloomberg.com",
+                "query": "retail consumer e-commerce sales shopping",
+                "sort": "relevancy"
+            },
+            "Real Estate": {
+                "domains": "bloomberg.com,cnbc.com,ft.com",
+                "query": "real estate REIT property housing commercial",
+                "sort": "relevancy"
+            },
+            "Consumer": {
+                "domains": "cnbc.com,reuters.com,bloomberg.com",
+                "query": "consumer credit cards spending employment wage",
+                "sort": "relevancy"
+            }
+        }
+        
+        config = industry_config.get(sector, {
+            "domains": "reuters.com,bloomberg.com",
+            "query": sector,
+            "sort": "relevancy"
+        })
+        
+        # Calculate date range (last 7 days)
+        to_date = datetime.now()
+        from_date = to_date - timedelta(days=7)
+        
+        # Fetch everything with comprehensive criteria
+        articles = newsapi.get_everything(
+            q=config["query"],
+            domains=config["domains"],
+            from_param=from_date.strftime('%Y-%m-%d'),
+            to=to_date.strftime('%Y-%m-%d'),
+            language='en',
+            sort_by=config["sort"],
+            page=1,
+            page_size=15
+        )
+        
+        if articles.get("status") == "ok" and articles.get("articles"):
+            article_list = articles.get("articles", [])
+            summary = f"**📊 COMPREHENSIVE ARTICLES - {sector}**\n"
+            summary += f"(Searched last 7 days, Found {len(article_list)} articles)\n\n"
+            
+            for idx, article in enumerate(article_list[:10], 1):
+                title = article.get("title", f"Industry: {sector}")
+                source = article.get("source", {}).get("name", "Unknown")
+                desc = article.get("description", "")
+                published = article.get("publishedAt", "").split("T")[0]
+                url = article.get("url", "#")
+                summary += f"**{idx}. {title}**\n"
+                summary += f"   📰 {source} | {published}\n"
+                summary += f"   {desc[:120] if desc else 'No description'}...\n"
+                summary += f"   🔗 [Read More]({url})\n\n"
+            
+            return summary
+        else:
+            return f"No comprehensive articles found for {sector}"
+    except Exception as e:
+        return f"Error fetching comprehensive articles: {str(e)}"
+
+def get_complete_industry_news(sector: str) -> str:
+    """Get complete news package for an industry: top headlines + comprehensive articles"""
+    try:
+        # Get top headlines
+        top_headlines = get_industry_top_headlines(sector)
+        
+        # Get comprehensive articles
+        comprehensive = get_industry_everything_articles(sector)
+        
+        # Combine both
+        complete_news = f"""
+{top_headlines}
+
+---
+
+{comprehensive}
+"""
+        return complete_news
+    except Exception as e:
+        return f"Error fetching complete industry news: {str(e)}"
 
 def fetch_newsapi_articles(query: str, sector: str = "") -> str:
     """Fetch news articles from NewsAPI for the News Manager"""
@@ -321,35 +533,36 @@ def create_sector_analysis_tasks(sector: str, query: str, news_content: str = ""
     # Pre-fetch real Yahoo Finance stock data for the sector
     sector_stock_data = fetch_sector_stock_data(sector)
     
-    # Task 1: News Researcher analyzes fetched news from Reuters, Bloomberg, and Yahoo Finance
+    # Task 1: News Researcher analyzes fetched news from NewsAPI v2 endpoints (top_headlines + everything)
     news_task = Task(
-        description=f"""Analyze and synthesize the latest market news for the {sector} sector from multiple sources.
+        description=f"""Analyze and synthesize market news for the {sector} sector from NewsAPI.org (industry-specific sources).
         
-        News Sources:
-        - Reuters & Bloomberg
-        - Yahoo Finance News feeds
-        - General market news
+        News Data Collected From:
+        - 🔴 NewsAPI /v2/top-headlines (breaking news per industry)
+        - 📊 NewsAPI /v2/everything (comprehensive articles, last 7 days)
+        - Industry-specific sources & domains configured per sector
         
         Here is the latest news content:
         
         {news_content}
         
         Your task:
-        1. Summarize key themes and trends in {sector} sector articles
-        2. Identify major catalysts and market-moving events
-        3. Cross-reference similar stories across news sources
+        1. Analyze both breaking news and historical articles for {sector} sector
+        2. Identify major catalysts and market-moving events (prioritize recent)
+        3. Detect recurring themes across multiple sources
         4. Determine overall sector sentiment (Bullish/Neutral/Bearish)
-        5. Extract specific stocks mentioned and context
-        6. Provide investment implications for long positions
+        5. Extract specific stocks mentioned and their market context
+        6. Assess impact on long-term investment opportunities
         
         Output Format:
-        - Executive Summary (2-3 sentences on sector direction)
-        - Top 3-5 themes/catalysts with impact assessment
-        - Source credibility analysis
-        - Overall sector sentiment with confidence level
-        - Top 5 stocks to analyze further""",
+        - Executive Summary (2-3 sentences on {sector} sector direction)
+        - Top 3-5 breaking news items from headlines
+        - Top 3-5 deeper trends from comprehensive articles
+        - Source analysis and credibility
+        - Overall sector sentiment with confidence level (1-10)
+        - Top 5-7 stocks to analyze further with reasoning""",
         agent=news_researcher,
-        expected_output=f"Comprehensive news synthesis for {sector} sector from Reuters, Bloomberg, Yahoo Finance covering trends, catalyst analysis, sentiment, and stock opportunities"
+        expected_output=f"Comprehensive news synthesis for {sector} sector using NewsAPI top headlines and everything endpoints, covering catalysts, sentiment analysis, trends, and stock opportunities"
     )
     
     # Task 2: Stock Analyst analyzes stocks based on news insights and LIVE Yahoo Finance data
@@ -430,16 +643,18 @@ def run_sector_analysis(sector: str) -> str:
         
         query = sector_queries.get(sector, sector)
         
-        # STEP 1: News Researcher searches Reuters & Bloomberg AND Yahoo Finance for the sector
-        print(f"\n[🔍 News Researcher] Searching Reuters & Bloomberg + Yahoo Finance for {sector} sector...")
-        news_content = search_reuters_bloomberg_news(query, sector)
+        # STEP 1: News Researcher gets complete industry news (top headlines + comprehensive articles)
+        print(f"\n[🔍 News Researcher] Fetching complete news package for {sector} sector...")
+        print(f"   📰 Getting top headlines ({sector})...")
+        print(f"   📊 Getting comprehensive articles ({sector})...")
+        news_content = get_complete_industry_news(sector)
         
         if not news_content:
             print(f"[🔍 News Researcher] No news found for {sector}")
             return ""
         
         print(f"[🔍 News Researcher] ✅ Found {len(news_content)} characters of news from multiple sources")
-        print(f"[🔍 News Researcher] 📰 Reuters & Bloomberg + 🔴 Yahoo Finance integrated")
+        print(f"[🔍 News Researcher] 🔴 NewsAPI Top Headlines + 📊 NewsAPI Everything endpoints integrated")
         
         # STEP 2: Fetch LIVE Yahoo Finance data for Stock Agent and Portfolio Manager
         print(f"\n[📊 Stock Agent] Fetching LIVE Yahoo Finance data for {sector}...")
