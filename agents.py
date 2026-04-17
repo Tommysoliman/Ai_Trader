@@ -65,10 +65,14 @@ def search_reuters_bloomberg_news(query: str, sector: str = "") -> str:
     """Search latest US market news from Reuters and Bloomberg sources"""
     try:
         # Try to get NewsAPI key from Streamlit secrets or environment
+        api_key = ""
         try:
-            api_key = st.secrets["NEWSAPI_KEY"]
-        except:
-            api_key = os.getenv("NEWSAPI_KEY")
+            api_key = st.secrets.get("NEWSAPI_KEY", "")
+        except Exception:
+            try:
+                api_key = os.getenv("NEWSAPI_KEY", "")
+            except Exception:
+                pass
         
         if not api_key:
             return f"API Key not found. Unable to search news for: {query}"

@@ -83,10 +83,14 @@ def fetch_financial_news_24h(query: str = "stock market", limit: int = 5, sector
     try:
         # Try to get API key from Streamlit secrets first (for cloud deployment)
         # Then fall back to environment variable (for local development)
+        news_api_key = ""
         try:
             news_api_key = st.secrets.get("NEWSAPI_KEY", "")
-        except:
-            news_api_key = getenv("NEWSAPI_KEY", "")
+        except Exception as e:
+            try:
+                news_api_key = getenv("NEWSAPI_KEY", "")
+            except Exception:
+                pass
         
         if not news_api_key or news_api_key == "test":
             print(f"WARNING: NewsAPI key not found. Showing sample data.")

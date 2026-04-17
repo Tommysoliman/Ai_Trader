@@ -665,9 +665,21 @@ with tab3:
     st.header("💰 Top Long CFD Opportunities")
     st.markdown("Curated long positions based on collaborative multi-agent analysis")
     
+    # Industry selector dropdown
+    industries_tab3 = ["All Sectors", "Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
+    selected_industry_tab3 = st.selectbox(
+        "🏢 Filter by Industry",
+        industries_tab3,
+        index=0,
+        key="long_recommendations_industry"
+    )
+    
     # Default settings
     current_leverage = 5
-    current_sectors = ["All Sectors"]
+    if selected_industry_tab3 == "All Sectors":
+        current_sectors = ["All Sectors"]
+    else:
+        current_sectors = [selected_industry_tab3]
     current_position_size = 5000
     use_leverage_setting = True
     
