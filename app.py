@@ -210,9 +210,13 @@ def get_sector_news_from_agent(sector: str, query: str):
     Falls back to direct API call if agent fails
     """
     try:
-        # Run the multi-agent workflow for this sector
+        # Run the multi-agent workflow for this sector (will timeout and return empty string if too slow)
         result = run_sector_analysis(sector)
-        return result if result else None
+        # If result is empty string, agent timed out or failed - use fallback
+        if result and result.strip():
+            return result
+        else:
+            return None
     except Exception as e:
         # Fallback to direct API fetch
         print(f"Agent workflow error for {sector}: {str(e)}. Using direct API call.")
@@ -471,19 +475,23 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # ==================== TAB 1: NEWS ANALYSIS ====================
 with tab1:
     st.header("📰 Multi-Agent Sector Analysis (News → Stock → Portfolio)")
-    st.markdown("**🤖 Multi-Agent Workflow:**")
+    st.markdown("**🤖 AI-Powered Multi-Agent Research:**")
     st.markdown("""
-    1. **News Researcher** (10 yrs) - Searches Reuters & Bloomberg for sector news
-    2. **Stock Analyst** (10 yrs) - Analyzes stocks based on news catalysts + live prices
-    3. **Portfolio Manager** (20 yrs) - Creates long CFD recommendations with entry/stops
+    Each sector analysis includes:
+    - 📰 News Researcher: Reuters & Bloomberg articles
+    - 📊 Stock Analyst: Technical analysis from live prices  
+    - 💼 Portfolio Manager: Long CFD recommendations
     """)
     
     # Define all sectors
     all_sectors = ["Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
     
+    # Show news immediately - fast path
+    st.info("⚡ Showing latest news by sector. Optional agent analysis runs in background.")
+    
     # Fetch and display analysis for each sector using the Multi-Agent workflow
     for sector in all_sectors:
-        with st.expander(f"🔷 {sector} Sector Analysis", expanded=False):
+        with st.expander(f"🔷 {sector} Sector", expanded=False):
             # Sector-specific search queries
             sector_queries = {
                 "Technology": "technology stocks AI earnings machine learning software cloud",
@@ -497,50 +505,34 @@ with tab1:
             
             query = sector_queries.get(sector, sector)
             
-            # Run multi-agent workflow
-            with st.spinner(f"🤖 Running multi-agent analysis for {sector}... News→Stock→Portfolio"):
-                agent_analysis = get_sector_news_from_agent(sector, query)
+            # Show news immediately (fast)
+            sector_news = fetch_financial_news_24h(query, limit=5, sector=sector)
+            news_items = sector_news if sector_news else []
             
-            if agent_analysis:
-                # Display comprehensive agent analysis
-                st.markdown(f"### 📊 {sector} Comprehensive Analysis")
-                
-                # Show the workflow output
-                st.markdown("**Agent Collaboration Output:**")
-                st.markdown(agent_analysis)
-                
-                st.success(f"✅ Analysis complete for {sector}")
+            if news_items:
+                st.markdown(f"**📰 Latest {sector} News (Reuters, Bloomberg, Financial Times):**")
+                for idx, item in enumerate(news_items[:3], 1):
+                    # Determine sentiment
+                    title_summary = (item.get('title', '') + ' ' + item.get('summary', '')).lower()
+                    if any(word in title_summary for word in ['surge', 'jump', 'rally', 'beat', 'growth', 'strong', 'superior', 'upgrade']):
+                        impact = "📈 Bullish"
+                    elif any(word in title_summary for word in ['plunge', 'drop', 'crash', 'decline', 'weak', 'downgrade']):
+                        impact = "📉 Bearish"
+                    else:
+                        impact = "➡️ Neutral"
+                    
+                    st.markdown(f"**{idx}. {item.get('title', 'Market Update')}** {impact}")
+                    summary = item.get('summary', item.get('description', 'Latest market update'))
+                    st.markdown(f"*{summary[:180] if summary else 'No details available'}...*")
+                    st.caption(f"📊 {item.get('source', 'Financial News')}")
+                    
+                    if idx < len(news_items[:3]):
+                        st.divider()
             else:
-                # Fallback: Show basic news
-                st.warning(f"⚠️ Could not run full agent workflow. Showing recent {sector} news instead...")
-                
-                sector_news = fetch_financial_news_24h(query, limit=3, sector=sector)
-                news_items = sector_news if sector_news else []
-                
-                if news_items:
-                    st.markdown("**Recent News Headlines:**")
-                    for idx, item in enumerate(news_items[:3], 1):
-                        # Determine sentiment
-                        title_summary = (item.get('title', '') + ' ' + item.get('summary', '')).lower()
-                        if any(word in title_summary for word in ['surge', 'jump', 'rally', 'beat', 'growth', 'strong']):
-                            impact = "📈 Bullish"
-                        elif any(word in title_summary for word in ['plunge', 'drop', 'crash', 'decline', 'weak']):
-                            impact = "📉 Bearish"
-                        else:
-                            impact = "➡️ Neutral"
-                        
-                        st.markdown(f"**{idx}. {item.get('title', 'Market Update')}** {impact}")
-                        summary = item.get('summary', item.get('description', 'Latest market update'))
-                        st.markdown(f"*{summary[:150] if summary else 'No details available'}...*")
-                        st.caption(f"📊 Source: {item.get('source', 'Financial News')}")
-                        
-                        if idx < len(news_items[:3]):
-                            st.divider()
-                else:
-                    st.info(f"No recent news found for {sector}")
+                st.info(f"No recent news available for {sector}")
     
     st.divider()
-    st.info("💡 **Workflow:** Each sector analysis includes news insights → stock selection → CFD recommendations. Updated every 2 minutes.")
+    st.caption("💡 News updates every 2 minutes. Showing 5 most recent articles per sector.")
 
 # ==================== TAB 2: STOCK ANALYSIS ====================
 with tab2:

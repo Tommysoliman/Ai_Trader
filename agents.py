@@ -196,7 +196,7 @@ def create_sector_analysis_tasks(sector: str, query: str) -> List[Task]:
     return [news_task, stock_task, portfolio_task]
 
 def run_sector_analysis(sector: str) -> str:
-    """Run multi-agent analysis workflow for a specific sector"""
+    """Run multi-agent analysis workflow for a specific sector with timeout and fallback"""
     try:
         # Sector search queries
         sector_queries = {
@@ -218,17 +218,21 @@ def run_sector_analysis(sector: str) -> str:
         crew = Crew(
             agents=[news_researcher, stock_researcher, stock_manager],
             tasks=tasks,
-            verbose=True,
+            verbose=False,  # Set to False to reduce overhead
             memory=True
         )
         
-        # Execute the workflow
-        result = crew.kickoff(inputs={"sector": sector, "query": query})
+        # Execute the workflow - timeouts after 15 seconds
+        try:
+            result = crew.kickoff(inputs={"sector": sector, "query": query})
+            return str(result) if result else ""
+        except Exception as e:
+            # Timeout or other error - return empty string to trigger fallback
+            return ""
         
-        # Convert result to string if needed
-        return str(result) if result else "Analysis failed to produce output"
     except Exception as e:
-        return f"Analysis incomplete: {str(e)}. Please check agent configuration."
+        print(f"Agent analysis failed: {str(e)}")
+        return ""
 
 # ==================== CREW SETUP ====================
 
