@@ -1,5 +1,4 @@
-from crewai import Agent, Task, Crew
-from crewai_tools import tool
+from crewai import Agent, Task, Crew, tool
 import os
 import requests
 import json
