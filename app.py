@@ -222,11 +222,30 @@ def get_sector_news_from_agent(sector: str, query: str):
         print(f"Agent workflow error for {sector}: {str(e)}. Using direct API call.")
         return None
 
-def get_confidence_score(use_leverage):
-    """Generate confidence scores that vary based on parameters"""
-    base_score = 85
-    leverage_bonus = 2 if use_leverage else 0
-    return min(base_score + leverage_bonus, 95)
+def get_confidence_score(use_leverage, signal_type=None, sector_trend=None):
+    """Generate confidence scores based on multiple factors"""
+    # Base score starts at 70
+    base_score = 70
+    
+    # Leverage adds to confidence (riskier = higher conviction needed)
+    leverage_bonus = 5 if use_leverage else 0
+    
+    # Signal strength bonus
+    signal_bonus = 0
+    if signal_type:
+        strong_signals = ["Golden Cross", "Bull Run", "Strong Breakout", "Uptrend Confirmed"]
+        medium_signals = ["Trading Strength", "Recovery Rally", "Bullish Resolution"]
+        if signal_type in strong_signals:
+            signal_bonus = 12
+        elif signal_type in medium_signals:
+            signal_bonus = 8
+    
+    # Sector trend bonus
+    trend_bonus = 3 if sector_trend == "Bullish" else -2 if sector_trend == "Bearish" else 0
+    
+    # Calculate final score capped at 95
+    confidence = base_score + leverage_bonus + signal_bonus + trend_bonus
+    return min(int(confidence), 95)
 
 def get_news_for_sectors(sectors):
     """Generate news based on selected sectors with sentiment-based signals"""
@@ -694,7 +713,7 @@ with tab3:
         current_sectors = ["All Sectors"]
     else:
         current_sectors = [selected_industry_tab3]
-    current_position_size = 5000
+    current_position_size = 500
     use_leverage_setting = True
     
     st.markdown("### 🎯 Top Long CFD Positions (Risk Adjusted)")
@@ -703,7 +722,8 @@ with tab3:
     filtered_stocks = get_recommendations_for_sectors(current_sectors, current_leverage)
     
     for idx, stock in enumerate(filtered_stocks[:3], 1):
-        confidence = get_confidence_score(use_leverage_setting)
+        # Calculate confidence based on signal quality and sector trend
+        confidence = get_confidence_score(use_leverage_setting, stock.get('signal', ''), 'Bullish')
         leverage_display = f"{current_leverage}:1" if use_leverage_setting else "1:1 (No Leverage)"
         adjusted_position_size = current_position_size
         
@@ -761,7 +781,7 @@ with tab4:
     )
     
     # Default settings
-    p_position_size = 5000
+    p_position_size = 500
     p_leverage = 5
     p_stop_loss = 5
     p_take_profit = 15

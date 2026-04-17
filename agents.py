@@ -23,12 +23,11 @@ news_researcher = Agent(
 
 news_manager = Agent(
     role="News Analysis Manager",
-    goal="Synthesize news research and provide strategic insights for trading decisions",
+    goal="Synthesize news research from NewsAPI and provide strategic insights for trading decisions",
     backstory="""You are an experienced News Analysis Manager with 20 years of expertise in the US market. 
-    You lead a team of researchers and are responsible for translating raw market news into actionable 
-    trading insights. Your strategic vision helps identify how macro trends affect specific stocks, 
-    especially in identifying short opportunities. You have navigated multiple market cycles and 
-    understand both fundamental and technical implications of news events.""",
+    You aggregate market news from NewsAPI to identify trends, catalysts, and sector rotations. 
+    Your expertise includes translating news into actionable trading insights and identifying early signals 
+    for market-moving events. You understand how macro trends affect specific stocks and sectors.""",
     verbose=True,
     allow_delegation=True
 )
@@ -60,6 +59,71 @@ stock_manager = Agent(
 )
 
 # ==================== TOOLS ====================
+
+def get_yahoo_finance_news(ticker: str) -> str:
+    """Fetch news for a specific ticker from Yahoo Finance"""
+    try:
+        import yfinance as yf
+        stock = yf.Ticker(ticker)
+        news = stock.news
+        
+        if not news or len(news) == 0:
+            return f"No news found for {ticker}"
+        
+        news_summary = f"**Yahoo Finance News for {ticker}:**\n\n"
+        for idx, article in enumerate(news[:5], 1):
+            title = article.get('title', 'No title')
+            publisher = article.get('publisher', 'Unknown')
+            news_summary += f"{idx}. **{title}**\n"
+            news_summary += f"   📰 {publisher}\n\n"
+        
+        return news_summary
+    except Exception as e:
+        return f"Error fetching Yahoo Finance news for {ticker}: {str(e)}"
+
+def fetch_newsapi_articles(query: str) -> str:
+    """Fetch news articles from NewsAPI for the News Manager"""
+    try:
+        api_key = ""
+        try:
+            api_key = st.secrets.get("NEWSAPI_KEY", "")
+        except Exception:
+            try:
+                api_key = os.getenv("NEWSAPI_KEY", "")
+            except Exception:
+                pass
+        
+        if not api_key:
+            return "API Key not found"
+        
+        url = "https://newsapi.org/v2/everything"
+        params = {
+            "q": query,
+            "sortBy": "publishedAt",
+            "language": "en",
+            "apiKey": api_key,
+            "pageSize": 15
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        
+        if data.get("status") == "ok" and data.get("articles"):
+            articles = data.get("articles", [])
+            summary = f"**NewsAPI Articles for '{query}':** (Found {len(articles)} articles)\n\n"
+            
+            for idx, article in enumerate(articles[:10], 1):
+                title = article.get("title", "")
+                source = article.get("source", {}).get("name", "Unknown")
+                desc = article.get("description", "")
+                summary += f"{idx}. **{title}**\n"
+                summary += f"   📊 {source}: {desc[:100] if desc else 'No description'}...\n\n"
+            
+            return summary
+        else:
+            return f"No articles found for: {query}"
+    except Exception as e:
+        return f"Error fetching NewsAPI articles: {str(e)}"
 
 def search_reuters_bloomberg_news(query: str, sector: str = "") -> str:
     """Search latest US market news from Reuters and Bloomberg sources with sector filtering"""
@@ -257,28 +321,35 @@ def create_sector_analysis_tasks(sector: str, query: str, news_content: str = ""
     # Pre-fetch real Yahoo Finance stock data for the sector
     sector_stock_data = fetch_sector_stock_data(sector)
     
-    # Task 1: News Researcher analyzes fetched news from Reuters and Bloomberg
+    # Task 1: News Researcher analyzes fetched news from Reuters, Bloomberg, and Yahoo Finance
     news_task = Task(
-        description=f"""Analyze and synthesize the latest market news from Reuters and Bloomberg for the {sector} sector.
+        description=f"""Analyze and synthesize the latest market news for the {sector} sector from multiple sources.
         
-        Here is the latest news sourced from Reuters & Bloomberg:
+        News Sources:
+        - Reuters & Bloomberg
+        - Yahoo Finance News feeds
+        - General market news
+        
+        Here is the latest news content:
         
         {news_content}
         
         Your task:
-        1. Summarize the key themes and trends in these {sector} sector articles
+        1. Summarize key themes and trends in {sector} sector articles
         2. Identify major catalysts and market-moving events
-        3. Determine overall sector sentiment (Bullish/Neutral/Bearish)
-        4. Extract specific stocks mentioned and their context
-        5. Provide investment implications for long positions
+        3. Cross-reference similar stories across news sources
+        4. Determine overall sector sentiment (Bullish/Neutral/Bearish)
+        5. Extract specific stocks mentioned and context
+        6. Provide investment implications for long positions
         
         Output Format:
         - Executive Summary (2-3 sentences on sector direction)
         - Top 3-5 themes/catalysts with impact assessment
+        - Source credibility analysis
         - Overall sector sentiment with confidence level
-        - Recommended stocks to analyze further""",
+        - Top 5 stocks to analyze further""",
         agent=news_researcher,
-        expected_output=f"Detailed news synthesis for {sector} sector covering trends, catalysts, sentiment, and specific stock opportunities"
+        expected_output=f"Comprehensive news synthesis for {sector} sector from Reuters, Bloomberg, Yahoo Finance covering trends, catalyst analysis, sentiment, and stock opportunities"
     )
     
     # Task 2: Stock Analyst analyzes stocks based on news insights and LIVE Yahoo Finance data
@@ -359,15 +430,16 @@ def run_sector_analysis(sector: str) -> str:
         
         query = sector_queries.get(sector, sector)
         
-        # STEP 1: News Researcher searches Reuters & Bloomberg for the sector
-        print(f"\n[🔍 News Researcher] Searching Reuters & Bloomberg for {sector} sector...")
+        # STEP 1: News Researcher searches Reuters & Bloomberg AND Yahoo Finance for the sector
+        print(f"\n[🔍 News Researcher] Searching Reuters & Bloomberg + Yahoo Finance for {sector} sector...")
         news_content = search_reuters_bloomberg_news(query, sector)
         
         if not news_content:
             print(f"[🔍 News Researcher] No news found for {sector}")
             return ""
         
-        print(f"[🔍 News Researcher] ✅ Found {len(news_content)} characters of news content")
+        print(f"[🔍 News Researcher] ✅ Found {len(news_content)} characters of news from multiple sources")
+        print(f"[🔍 News Researcher] 📰 Reuters & Bloomberg + 🔴 Yahoo Finance integrated")
         
         # STEP 2: Fetch LIVE Yahoo Finance data for Stock Agent and Portfolio Manager
         print(f"\n[📊 Stock Agent] Fetching LIVE Yahoo Finance data for {sector}...")
