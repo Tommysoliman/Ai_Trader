@@ -5,6 +5,7 @@ from dotenv import load_dotenv
 from utils import (format_time_display, get_us_and_egyptian_time, get_current_stock_price, 
                    get_multiple_stock_prices, fetch_financial_news_24h, get_latest_market_alerts,
                    analyze_news_sentiment, generate_signals_from_news)
+from agents import news_researcher, create_sector_news_research_task
 from datetime import datetime
 import time
 
@@ -202,6 +203,24 @@ def calculate_position_size(capital_at_risk, entry, stop_loss, leverage):
         'notional': float(notional_exposure),
         'margin': float(margin_required)
     }
+
+def get_sector_news_from_agent(sector: str, query: str):
+    """
+    Fetch news for a sector using the News Researcher agent from CrewAI
+    Falls back to direct API call if agent fails
+    """
+    try:
+        # Create a sector-specific news research task
+        task = create_sector_news_research_task(sector, query)
+        
+        # Execute the task with the news researcher agent
+        result = news_researcher.execute_task(task)
+        
+        return result if result else None
+    except Exception as e:
+        # Fallback to direct API call
+        print(f"Agent error for {sector}: {str(e)}. Using direct API call.")
+        return None
 
 def get_confidence_score(use_leverage):
     """Generate confidence scores that vary based on parameters"""
@@ -456,55 +475,65 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # ==================== TAB 1: NEWS ANALYSIS ====================
 with tab1:
     st.header("📰 Latest Market News by Sector (24 Hours)")
-    st.markdown("Real-time news analysis showing what happened in each sector in the last 24 hours.")
+    st.markdown("**News Researcher Agent** searches Reuters and Bloomberg for real, industry-relevant updates.")
+    st.info("🔍 Our Senior News Researcher (10 years) filters Reuters/Bloomberg for each sector's most relevant articles.")
     
     # Define all sectors
     all_sectors = ["Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
     
-    # Fetch and display news for each sector
+    # Fetch and display news for each sector using the Research Agent
     for sector in all_sectors:
         with st.expander(f"🔷 {sector}", expanded=True):
-            # Fetch real news for this specific sector
+            # Sector-specific search queries
             sector_queries = {
-                "Technology": "technology stocks AI earnings machine learning",
-                "Finance": "banking financial sector stocks earnings interest rates",
-                "Healthcare": "healthcare pharma pharmaceutical stocks clinical trials",
-                "Energy": "oil energy gas stocks renewable energy commodities",
-                "Retail": "retail consumer stocks e-commerce sales earnings",
-                "Real Estate": "real estate REIT property stocks housing",
-                "Consumer": "consumer credit cards stocks spending debt"
+                "Technology": "technology stocks AI earnings machine learning software cloud",
+                "Finance": "banking financial sector stocks earnings interest rates credit",
+                "Healthcare": "healthcare pharma pharmaceutical stocks clinical trials FDA",
+                "Energy": "oil energy gas stocks renewable energy commodities petroleum",
+                "Retail": "retail consumer stocks e-commerce sales earnings shopping",
+                "Real Estate": "real estate REIT property stocks housing commercial",
+                "Consumer": "consumer credit cards stocks spending debt employment"
             }
             
             query = sector_queries.get(sector, sector)
-            sector_news = fetch_financial_news_24h(query, limit=3, sector=sector)
             
-            # Get news for this specific sector
-            news_items = sector_news if sector_news else []
+            # Try to get news from the Research Agent first
+            with st.spinner(f"Researching {sector} news from Reuters and Bloomberg..."):
+                agent_news = get_sector_news_from_agent(sector, query)
             
-            if news_items:
-                # Display the first 2 news items as 2-sentence summaries
-                for idx, item in enumerate(news_items[:2], 1):
-                    # Determine sentiment from title/summary keywords
-                    title_summary = (item.get('title', '') + ' ' + item.get('summary', '')).lower()
-                    if any(word in title_summary for word in ['surge', 'jump', 'rally', 'beat', 'growth', 'strong']):
-                        impact = "📈 Bullish"
-                    elif any(word in title_summary for word in ['plunge', 'drop', 'crash', 'decline', 'weak']):
-                        impact = "📉 Bearish"
-                    else:
-                        impact = "➡️ Neutral"
-                    
-                    st.markdown(f"**{idx}. {item.get('title', 'Market Update')}** {impact}")
-                    summary = item.get('summary', item.get('description', 'Latest market update'))
-                    st.markdown(f"*{summary[:150] if summary else 'No details available'}...*")
-                    source = item.get('source', 'Financial News')
-                    st.caption(f"📊 Source: {source}")
-                    
-                    if idx < 2:
-                        st.divider()
+            # Fallback to direct API if agent fails
+            if agent_news:
+                st.markdown("**From News Researcher Agent:**")
+                st.markdown(agent_news)
             else:
-                st.info(f"No news data available for {sector}")
+                # Use direct API fetch as fallback
+                sector_news = fetch_financial_news_24h(query, limit=3, sector=sector)
+                news_items = sector_news if sector_news else []
+                
+                if news_items:
+                    # Display the first 2 news items
+                    for idx, item in enumerate(news_items[:2], 1):
+                        # Determine sentiment from title/summary keywords
+                        title_summary = (item.get('title', '') + ' ' + item.get('summary', '')).lower()
+                        if any(word in title_summary for word in ['surge', 'jump', 'rally', 'beat', 'growth', 'strong']):
+                            impact = "📈 Bullish"
+                        elif any(word in title_summary for word in ['plunge', 'drop', 'crash', 'decline', 'weak']):
+                            impact = "📉 Bearish"
+                        else:
+                            impact = "➡️ Neutral"
+                        
+                        st.markdown(f"**{idx}. {item.get('title', 'Market Update')}** {impact}")
+                        summary = item.get('summary', item.get('description', 'Latest market update'))
+                        st.markdown(f"*{summary[:150] if summary else 'No details available'}...*")
+                        source = item.get('source', 'Financial News')
+                        st.caption(f"📊 Source: {source} | From: NewsAPI")
+                        
+                        if idx < 2:
+                            st.divider()
+                else:
+                    st.info(f"📊 Fetching real news for {sector}...")
     
-    st.info("💡 Tip: Click each sector to see the latest 24-hour news. Updates automatically every 2 minutes.")
+    st.info("💡 Tip: News updates every 2 minutes. Each article is filtered by sector keywords to ensure relevance.")
 
 # ==================== TAB 2: STOCK ANALYSIS ====================
 with tab2:

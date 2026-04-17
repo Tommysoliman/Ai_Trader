@@ -1,6 +1,10 @@
 from crewai import Agent, Task, Crew
 from crewai_tools import tool
 import os
+import requests
+import json
+from typing import List, Dict
+import streamlit as st
 
 # Initialize agents with specific roles and expertise levels
 
@@ -58,11 +62,50 @@ stock_manager = Agent(
 
 # ==================== TOOLS ====================
 
-@tool("News Database")
-def search_market_news(query: str) -> str:
-    """Search latest US market news and economic indicators"""
-    # In production, this would connect to a news API like NewsAPI, Alpha Vantage, etc.
-    return f"News search results for: {query}. [In production, connects to live news feeds]"
+@tool("News Database - Reuters and Bloomberg")
+def search_reuters_bloomberg_news(query: str, sector: str = "") -> str:
+    """Search latest US market news from Reuters and Bloomberg sources"""
+    try:
+        # Try to get NewsAPI key from Streamlit secrets or environment
+        try:
+            api_key = st.secrets["NEWSAPI_KEY"]
+        except:
+            api_key = os.getenv("NEWSAPI_KEY")
+        
+        if not api_key:
+            return f"API Key not found. Unable to search news for: {query}"
+        
+        # Search Reuters and Bloomberg specifically
+        sources = "reuters,bloomberg"
+        url = f"https://newsapi.org/v2/everything"
+        params = {
+            "q": query,
+            "sources": sources,
+            "apiKey": api_key,
+            "sortBy": "publishedAt",
+            "language": "en",
+            "pageSize": 10
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
+        
+        if data.get("status") == "ok" and data.get("articles"):
+            articles = data.get("articles", [])
+            news_summary = f"Found {len(articles)} articles from Reuters and Bloomberg for '{query}':\n\n"
+            
+            for idx, article in enumerate(articles[:5], 1):
+                title = article.get("title", "")
+                source = article.get("source", {}).get("name", "Unknown")
+                description = article.get("description", "")
+                news_summary += f"{idx}. [{source}] {title}\n"
+                news_summary += f"   {description[:150]}...\n\n"
+            
+            return news_summary
+        else:
+            return f"No articles found from Reuters/Bloomberg for: {query}. Status: {data.get('status')}"
+    except Exception as e:
+        return f"Error searching news: {str(e)}"
 
 @tool("Stock Data")
 def get_stock_data(ticker: str) -> str:
@@ -82,11 +125,30 @@ def cfd_recommendation(ticker: str) -> str:
 
 # ==================== TASKS ====================
 
+def create_sector_news_research_task(sector: str, query: str) -> Task:
+    """Create a sector-specific news research task"""
+    return Task(
+        description=f"""Search and analyze the latest market news from Reuters and Bloomberg for the {sector} sector.
+        
+        Search query: {query}
+        
+        Use the 'News Database - Reuters and Bloomberg' tool to find:
+        1. Recent announcements and earnings updates
+        2. Regulatory changes or policy updates affecting {sector}
+        3. Industry trends and competitive developments
+        4. Company-specific news from major players
+        5. Performance analysis and outlook changes
+        
+        Provide a comprehensive summary of {sector} sector news with specific articles from Reuters and Bloomberg.""",
+        agent=news_researcher,
+        expected_output=f"5-10 news articles from Reuters and Bloomberg about {sector} sector with titles, sources, and summaries"
+    )
+
 def create_tasks():
     """Create tasks for the crew"""
     
     news_research_task = Task(
-        description="""Research and analyze the latest market-moving news from the US market.
+        description="""Research and analyze the latest market-moving news from the US market using Reuters and Bloomberg sources.
         Focus on:
         1. Major economic indicators and announcements
         2. Corporate earnings misses or warnings
@@ -94,9 +156,10 @@ def create_tasks():
         4. Geopolitical events affecting markets
         5. Fed policy decisions and statements
         
+        Use the 'News Database - Reuters and Bloomberg' tool to search for news.
         Provide a comprehensive summary of bearish news that could lead to stock declines.""",
         agent=news_researcher,
-        expected_output="Detailed analysis of recent market-moving negative news"
+        expected_output="Detailed analysis of recent market-moving negative news from Reuters and Bloomberg"
     )
     
     news_strategy_task = Task(
