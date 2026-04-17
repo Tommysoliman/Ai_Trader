@@ -81,7 +81,7 @@ def get_yahoo_finance_news(ticker: str) -> str:
     except Exception as e:
         return f"Error fetching Yahoo Finance news for {ticker}: {str(e)}"
 
-def fetch_newsapi_articles(query: str) -> str:
+def fetch_newsapi_articles(query: str, sector: str = "") -> str:
     """Fetch news articles from NewsAPI for the News Manager"""
     try:
         api_key = ""
@@ -113,7 +113,7 @@ def fetch_newsapi_articles(query: str) -> str:
             summary = f"**NewsAPI Articles for '{query}':** (Found {len(articles)} articles)\n\n"
             
             for idx, article in enumerate(articles[:10], 1):
-                title = article.get("title", "")
+                title = article.get("title", f"Industry: {sector if sector else 'Financial News'}")
                 source = article.get("source", {}).get("name", "Unknown")
                 desc = article.get("description", "")
                 summary += f"{idx}. **{title}**\n"
