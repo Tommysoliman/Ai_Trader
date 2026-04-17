@@ -1,4 +1,4 @@
-from crewai import Agent, Task, Crew, tool
+from crewai import Agent, Task, Crew
 import os
 import requests
 import json
@@ -61,7 +61,6 @@ stock_manager = Agent(
 
 # ==================== TOOLS ====================
 
-@tool("News Database - Reuters and Bloomberg")
 def search_reuters_bloomberg_news(query: str, sector: str = "") -> str:
     """Search latest US market news from Reuters and Bloomberg sources"""
     try:
@@ -106,18 +105,15 @@ def search_reuters_bloomberg_news(query: str, sector: str = "") -> str:
     except Exception as e:
         return f"Error searching news: {str(e)}"
 
-@tool("Stock Data")
 def get_stock_data(ticker: str) -> str:
     """Get technical and fundamental data for a stock"""
     # In production, this would use Alpha Vantage, Finnhub, or similar
     return f"Stock data for {ticker}. [In production, connects to live market data]"
 
-@tool("Market Sentiment")
 def analyze_sentiment() -> str:
     """Analyze overall market sentiment and volatility indicators"""
     return "Market sentiment analysis: [VIX, put/call ratios, insider selling, etc.]"
 
-@tool("CFD Analysis")
 def cfd_recommendation(ticker: str) -> str:
     """Analyze and recommend short CFD positions"""
     return f"Short CFD recommendation for {ticker}: [Risk/Reward analysis]"
