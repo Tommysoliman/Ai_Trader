@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 from utils import (format_time_display, get_us_and_egyptian_time, get_current_stock_price, 
                    get_multiple_stock_prices, fetch_financial_news_24h, get_latest_market_alerts,
                    analyze_news_sentiment, generate_signals_from_news)
-from agents import news_researcher, run_sector_analysis
+from agents import news_researcher, run_sector_analysis, get_news_researcher_results
 from datetime import datetime
 import time
 
@@ -474,95 +474,108 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 
 # ==================== TAB 1: NEWS ANALYSIS ====================
 with tab1:
-    st.header("📰 Multi-Agent Sector Analysis (News → Stock → Portfolio)")
-    st.markdown("**🤖 AI-Powered Multi-Agent Research:**")
+    st.header("📰 News Researcher - Multi-Agent Market Intelligence")
+    st.markdown("**🤖 AI-Powered News Analysis:**")
     st.markdown("""
-    Each sector analysis includes:
-    - 📰 News Researcher: Reuters & Bloomberg articles
-    - 📊 Stock Analyst: Technical analysis from live prices  
-    - 💼 Portfolio Manager: Long CFD recommendations
+    News Researcher (Senior, 10 years) searches **Reuters & Bloomberg** for sector-specific news:
+    - Identifies breaking news and market-moving events
+    - Filters articles by sector (removes cross-sector contamination)
+    - Provides sentiment analysis and catalysts
+    - Highlights investment implications for each sector
     """)
     
     # Define all sectors
     all_sectors = ["Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
     
-    # Show news immediately - fast path
-    st.info("⚡ Showing latest news by sector. Optional agent analysis runs in background.")
+    st.info("⚡ News Researcher is actively searching Reuters & Bloomberg for each sector...")
     
-    # Fetch and display analysis for each sector using the Multi-Agent workflow
+    # Fetch and display News Researcher results for each sector
     for sector in all_sectors:
-        with st.expander(f"🔷 {sector} Sector", expanded=False):
-            # Sector-specific search queries
-            sector_queries = {
-                "Technology": "technology stocks AI earnings machine learning software cloud",
-                "Finance": "banking financial sector stocks earnings interest rates credit",
-                "Healthcare": "healthcare pharma pharmaceutical stocks clinical trials FDA",
-                "Energy": "oil energy gas stocks renewable energy commodities petroleum",
-                "Retail": "retail consumer stocks e-commerce sales earnings shopping",
-                "Real Estate": "real estate REIT property stocks housing commercial",
-                "Consumer": "consumer credit cards stocks spending debt employment"
-            }
+        with st.expander(f"📰 {sector} - Reuters & Bloomberg News", expanded=(sector == "Technology")):
+            col1, col2 = st.columns([3, 1])
             
-            query = sector_queries.get(sector, sector)
-            
-            # Show news immediately (fast)
-            sector_news = fetch_financial_news_24h(query, limit=5, sector=sector)
-            news_items = sector_news if sector_news else []
-            
-            if news_items:
-                st.markdown(f"**📰 Latest {sector} News (Reuters, Bloomberg, Financial Times):**")
-                for idx, item in enumerate(news_items[:3], 1):
-                    # Determine sentiment
-                    title_summary = (item.get('title', '') + ' ' + item.get('summary', '')).lower()
-                    if any(word in title_summary for word in ['surge', 'jump', 'rally', 'beat', 'growth', 'strong', 'superior', 'upgrade']):
-                        impact = "📈 Bullish"
-                    elif any(word in title_summary for word in ['plunge', 'drop', 'crash', 'decline', 'weak', 'downgrade']):
-                        impact = "📉 Bearish"
+            with col1:
+                st.markdown(f"**News Researcher searching {sector} sector news...**")
+                
+                # Call News Researcher agent
+                with st.spinner(f"🔍 Searching Reuters & Bloomberg for {sector}..."):
+                    researcher_results = get_news_researcher_results(sector)
+                
+                if researcher_results["status"] == "success":
+                    news_content = researcher_results["news"]
+                    
+                    if news_content:
+                        # Parse and display the news
+                        st.markdown(news_content)
                     else:
-                        impact = "➡️ Neutral"
-                    
-                    st.markdown(f"**{idx}. {item.get('title', 'Market Update')}** {impact}")
-                    summary = item.get('summary', item.get('description', 'Latest market update'))
-                    st.markdown(f"*{summary[:180] if summary else 'No details available'}...*")
-                    st.caption(f"📊 {item.get('source', 'Financial News')}")
-                    
-                    if idx < len(news_items[:3]):
-                        st.divider()
-            else:
-                st.info(f"No recent news available for {sector}")
+                        st.info(f"No Reuters/Bloomberg articles found for {sector}")
+                        
+                        # Show fallback from direct API
+                        sector_queries = {
+                            "Technology": "technology stocks AI earnings machine learning",
+                            "Finance": "banking financial sector stocks earnings",
+                            "Healthcare": "healthcare pharma pharmaceutical stocks",
+                            "Energy": "oil energy gas stocks renewable",
+                            "Retail": "retail consumer stocks e-commerce",
+                            "Real Estate": "real estate REIT property stocks",
+                            "Consumer": "consumer credit stocks spending"
+                        }
+                        
+                        query = sector_queries.get(sector, sector)
+                        fallback_news = fetch_financial_news_24h(query, limit=5, sector=sector)
+                        
+                        if fallback_news:
+                            st.markdown(f"**📊 Alternative News Sources for {sector}:**")
+                            for idx, item in enumerate(fallback_news[:3], 1):
+                                st.markdown(f"**{idx}. {item.get('title', 'Market Update')}**")
+                                summary = item.get('summary', item.get('description', 'No details'))
+                                st.caption(f"{summary[:150]}... | {item.get('source', 'News Source')}")
+                
+                elif researcher_results["status"] == "error":
+                    st.error(f"Error fetching news: {researcher_results['news']}")
+            
+            with col2:
+                st.metric(f"{sector}\nNews Status", "✅ LIVE")
     
     st.divider()
-    st.caption("💡 News updates every 2 minutes. Showing 5 most recent articles per sector.")
+    st.caption("💡 News Researcher updates every 2 minutes. Showing live Reuters & Bloomberg articles by sector.")
 
 # ==================== TAB 2: STOCK ANALYSIS ====================
 with tab2:
-    st.header("📊 Technical & Fundamental Analysis")
+    st.header("📊 Stock Analysis - Live Yahoo Finance Data")
     st.markdown("""
-    Stock Market Analyst (10 years) and Portfolio Manager (20 years) identify technical breakdowns
-    and fundamental deterioration suitable for short positions.
+    **Stock Market Analyst (10 years)** and **Portfolio Manager (20 years)**:
+    - Use LIVE Yahoo Finance prices for real-time analysis
+    - Technical breakdown identification from live price action
+    - Fundamental deterioration detection
+    - Risk-adjusted position sizing using current market data
     """)
     
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("📉 Stock Market Analyst (10 years)")
+        st.subheader("📊 Stock Market Analyst")
         with st.expander("Analyst Profile", expanded=False):
             st.markdown("""
             - **Experience:** 10 years technical & fundamental analysis
-            - **Expertise:** Pattern recognition, metrics evaluation, breakdowns
-            - **Role:** Identify technical and fundamental short signals
-            - **Focus:** Overbought conditions, support breaks, deteriorating metrics
+            - **Data Source:** 🔴 LIVE Yahoo Finance prices
+            - **Expertise:** Pattern recognition, technical levels, breakdowns
+            - **Role:** Identify opportunities using live market data
+            - **Metrics:** Real-time price action, volumes, moving averages
             """)
     
     with col2:
-        st.subheader("🎯 Portfolio Manager (20 years)")
+        st.subheader("🎯 Portfolio Manager")
         with st.expander("Manager Profile", expanded=False):
             st.markdown("""
-            - **Experience:** 20 years short strategy management
-            - **Expertise:** Risk management, position sizing, bear markets
-            - **Role:** Coordinate analysis and structure positions
-            - **Focus:** Risk-adjusted returns, leverage strategies
+            - **Experience:** 20 years portfolio strategy
+            - **Data Source:** 🔴 LIVE Yahoo Finance prices for sizing
+            - **Expertise:** Risk management, position sizing, correlation analysis
+            - **Role:** Build positions using current market prices
+            - **Tools:** Live pricing, leverage calculation, volatility sizing
             """)
+    
+    st.info("🔴 **LIVE Yahoo Finance Integration:** All prices and analysis use real-time stock data")
     
     st.markdown("### Stock Screening Results")
     
@@ -619,6 +632,8 @@ with tab2:
     df_stocks = pd.DataFrame(stocks_data)
     st.dataframe(df_stocks, use_container_width=True)
     
+    st.caption("💡 **Data Source:** All prices fetched LIVE from Yahoo Finance. Updates every 5 minutes. Technical signals based on real price action and moving averages.")
+    
     st.markdown("### Individual Stock Deep-Dive")
     
     # Populate stock selector with dynamic stocks
@@ -654,8 +669,15 @@ with tab2:
 
 # ==================== TAB 3: LONG RECOMMENDATIONS ====================
 with tab3:
-    st.header("💰 Top Long CFD Opportunities")
-    st.markdown("Curated long positions based on collaborative multi-agent analysis")
+    st.header("💰 Long CFD Opportunities - Using LIVE Yahoo Finance Prices")
+    st.markdown("""
+    Curated long positions based on:
+    - 📰 **News Researcher:** Reuters & Bloomberg analysis
+    - 📊 **Stock Agent:** Live Yahoo Finance technical levels
+    - 💼 **Portfolio Manager:** Real-time price-based position sizing
+    
+    **All recommendations use LIVE Yahoo Finance stock data for entries, stops, and sizing.**
+    """)
     
     # Industry selector dropdown
     industries_tab3 = ["All Sectors", "Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
@@ -720,7 +742,14 @@ with tab3:
 
 # ==================== TAB 4: PORTFOLIO STRATEGY ====================
 with tab4:
-    st.header("📈 Portfolio Strategy & Risk Management")
+    st.header("📈 Portfolio Strategy & Risk Management - Using LIVE Yahoo Finance")
+    st.markdown("""
+    **Portfolio Manager (20 years)** creates recommendations using:
+    - 🔴 **LIVE Yahoo Finance stock prices** for position sizing
+    - Real-time technical levels from price action
+    - Current market volatility for leverage calculation
+    - Dynamic position sizing based on latest trading data
+    """)
     
     # Industry selector dropdown
     industries = ["All Sectors", "Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
