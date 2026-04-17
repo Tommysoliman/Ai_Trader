@@ -476,7 +476,7 @@ with tab1:
             }
             
             query = sector_queries.get(sector, sector)
-            sector_news = fetch_financial_news_24h(query, limit=3)
+            sector_news = fetch_financial_news_24h(query, limit=3, sector=sector)
             
             # Get news for this specific sector
             news_items = sector_news if sector_news else []

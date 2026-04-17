@@ -74,9 +74,10 @@ def format_time_display() -> str:
     """
 
 @st.cache_data(ttl=600)  # Cache for 10 minutes
-def fetch_financial_news_24h(query: str = "stock market", limit: int = 5) -> List[Dict]:
+def fetch_financial_news_24h(query: str = "stock market", limit: int = 5, sector: str = "") -> List[Dict]:
     """
     Fetch real financial news from the last 24 hours using NewsAPI
+    Filters results to ensure they're relevant to the sector
     Falls back to sample data if API fails
     """
     try:
@@ -103,7 +104,7 @@ def fetch_financial_news_24h(query: str = "stock market", limit: int = 5) -> Lis
             "sortBy": "publishedAt",
             "language": "en",
             "apiKey": news_api_key,
-            "pageSize": limit,
+            "pageSize": limit * 2,  # Fetch more to filter
             "domains": "ft.com,economist.com,bloomberg.com,cnbc.com,reuters.com,marketwatch.com"
         }
         
@@ -118,9 +119,25 @@ def fetch_financial_news_24h(query: str = "stock market", limit: int = 5) -> Lis
                 print(f"INFO: No articles found for query: {query}. Showing sample data.")
                 return get_sample_news(query, limit)
             
+            # Filter articles for sector relevance
+            sector_keywords = get_sector_keywords(sector)
+            filtered_articles = []
+            
+            for article in articles:
+                title_lower = article.get("title", "").lower()
+                summary_lower = article.get("description", "").lower()
+                combined_text = title_lower + " " + summary_lower
+                
+                # Check if article contains sector keywords
+                if any(keyword in combined_text for keyword in sector_keywords):
+                    filtered_articles.append(article)
+            
+            # Use filtered articles if found, otherwise use all articles
+            articles_to_use = filtered_articles if filtered_articles else articles
+            
             # Format articles for display
             formatted_news = []
-            for article in articles[:limit]:
+            for article in articles_to_use[:limit]:
                 formatted_news.append({
                     "title": article.get("title", ""),
                     "summary": article.get("description", ""),
@@ -130,7 +147,7 @@ def fetch_financial_news_24h(query: str = "stock market", limit: int = 5) -> Lis
                     "image": article.get("urlToImage", "")
                 })
             
-            return formatted_news
+            return formatted_news if formatted_news else get_sample_news(query, limit)
         else:
             print(f"ERROR: NewsAPI returned {response.status_code}. Using sample data.")
             return get_sample_news(query, limit)
@@ -138,6 +155,20 @@ def fetch_financial_news_24h(query: str = "stock market", limit: int = 5) -> Lis
     except Exception as e:
         print(f"Error fetching financial news: {e}")
         return get_sample_news(query, limit)
+
+def get_sector_keywords(sector: str) -> List[str]:
+    """Get validation keywords for each sector to filter news relevance"""
+    sector_keywords_map = {
+        "Technology": ["tech", "software", "ai", "cloud", "semiconductor", "nvidia", "apple", "microsoft", "google", "meta", "algorithm", "data center", "chip", "gpu", "coding", "digital", "internet", "cyber", "innovation", "startup"],
+        "Finance": ["bank", "finance", "financial", "fed", "rate", "credit", "mortgage", "loan", "investment", "stocks", "trading", "jpmorgan", "goldman", "wells fargo", "interest rate", "deposit", "loan", "treasury", "hedge fund", "banking"],
+        "Healthcare": ["health", "pharma", "pharmaceutical", "drug", "medical", "hospital", "clinical", "fda", "vaccine", "biotech", "treatment", "disease", "patient", "medicine", "doctor", "healthcare", "nursing", "therapy", "cure", "diagnosis"],
+        "Energy": ["oil", "gas", "energy", "coal", "renewable", "battery", "solar", "wind", "fuel", "power", "electricity", "petroleum", "crude", "hydro", "nuclear", "exxon", "shell", "chevron", "renewable energy"],
+        "Retail": ["retail", "e-commerce", "shopping", "consumer", "amazon", "walmart", "target", "mall", "fashion", "clothing", "merchandise", "store", "sales", "commerce", "ebay", "mall", "discount"],
+        "Real Estate": ["real estate", "reit", "property", "housing", "commercial", "residential", "apartment", "building", "construction", "developer", "land", "rent", "mortgage", "realestate", "homebuilder"],
+        "Consumer": ["consumer", "credit", "spending", "credit card", "debt", "household", "income", "purchase", "retail sales", "payroll", "wages", "employment", "jobs", "consumer spending"]
+    }
+    
+    return sector_keywords_map.get(sector, [])
 
 def get_sample_news(query: str, limit: int) -> List[Dict]:
     """
