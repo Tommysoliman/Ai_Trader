@@ -1271,6 +1271,10 @@ Make recommendations based on the news sentiment and market trends.""",
             if result_str and not has_error:
                 bullet_count = result_str.count('\n-') + (1 if result_str.startswith('-') else 0)
                 if bullet_count >= 4:
+                    # Add sources from the combined news
+                    sources = _extract_sources_from_news(combined_news)
+                    if sources:
+                        result_str += "\n\n**📰 Sources:**\n" + "\n".join(sources)
                     return result_str
             
             # Fallback: provide generic recommendations when AI fails
@@ -1355,8 +1359,14 @@ def _format_stock_recommendations_fallback(industry: str, news_data: str) -> str
     
     # Get recommendations for the industry or use Technology as default
     recommendations = industry_stocks.get(industry, industry_stocks["Technology"])
+    result = "\n".join(recommendations[:6])
     
-    return "\n".join(recommendations[:6])
+    # Add sources from news data
+    sources = _extract_sources_from_news(news_data)
+    if sources:
+        result += "\n\n**📰 Sources:**\n" + "\n".join(sources)
+    
+    return result
 
 
 # ==================== CHROMADB LONG-TERM MEMORY ====================
