@@ -496,137 +496,87 @@ with tab1:
     st.header("📰 News Researcher - Multi-Agent Market Intelligence")
     st.markdown("**🤖 AI-Powered News Analysis & Chat:**")
     st.markdown("""
-    News Researcher (Senior, 10 years) searches **Reuters & Bloomberg** for sector-specific news:
-    - Identifies breaking news and market-moving events
-    - Filters articles by sector (removes cross-sector contamination)
-    - Provides sentiment analysis and catalysts
-    - Highlights investment implications for each sector
+    Ask the News Agent questions about any sector. The agent intelligently fetches and analyzes:
+    - Breaking news from Reuters & Bloomberg
+    - Industry-specific news from NewsAPI
+    - Deep analysis articles and trends
+    - Direct answers to your questions
     """)
     
     # Define all sectors
     all_sectors = ["Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
     
-    # Create two columns: News + Agent Chat
-    col_news, col_chat = st.columns([1.5, 1])
-    
-    with col_news:
-        st.subheader("📰 News by Sector")
-        
-        st.info("⚡ News Researcher is actively searching Reuters & Bloomberg for each sector...")
-        
-        # Fetch and display News Researcher results for each sector
-        for sector in all_sectors:
-            with st.expander(f"📰 {sector} - Reuters & Bloomberg News", expanded=(sector == "Technology")):
-                col1, col2 = st.columns([3, 1])
-                
-                with col1:
-                    st.markdown(f"**News Researcher searching {sector} sector news...**")
-                    
-                    # Call News Researcher agent
-                    with st.spinner(f"🔍 Searching Reuters & Bloomberg for {sector}..."):
-                        researcher_results = get_news_researcher_results(sector)
-                    
-                    if researcher_results["status"] == "success":
-                        news_content = researcher_results["news"]
-                        
-                        if news_content:
-                            # Parse and display the news
-                            st.markdown(news_content)
-                        else:
-                            st.info(f"No Reuters/Bloomberg articles found for {sector}")
-                            
-                            # Show fallback from direct API
-                            sector_queries = {
-                                "Technology": "technology stocks AI earnings machine learning",
-                                "Finance": "banking financial sector stocks earnings",
-                                "Healthcare": "healthcare pharma pharmaceutical stocks",
-                                "Energy": "oil energy gas stocks renewable",
-                                "Retail": "retail consumer stocks e-commerce",
-                                "Real Estate": "real estate REIT property stocks",
-                                "Consumer": "consumer credit stocks spending"
-                            }
-                            
-                            query = sector_queries.get(sector, sector)
-                            fallback_news = fetch_financial_news_24h(query, limit=5, sector=sector)
-                            
-                            if fallback_news:
-                                st.markdown(f"**📊 Alternative News Sources for {sector}:**")
-                                for idx, item in enumerate(fallback_news[:3], 1):
-                                    st.markdown(f"**{idx}. {item.get('title', 'Market Update')}**")
-                                    summary = item.get('summary', item.get('description', 'No details'))
-                                    st.caption(f"{summary[:150]}... | {item.get('source', 'News Source')}")
-                    
-                    elif researcher_results["status"] == "error":
-                        st.error(f"Error fetching news: {researcher_results['news']}")
-                
-                with col2:
-                    st.metric(f"{sector}\nNews Status", "✅ LIVE")
-        
-        st.divider()
-        st.caption("💡 News Researcher updates every 2 minutes. Showing live Reuters & Bloomberg articles by sector.")
+    st.divider()
     
     # ==================== NEWS AGENT CHATBOX ====================
-    with col_chat:
-        st.subheader("💬 Ask News Agent")
-        
-        # Industry selector
-        selected_industry = st.selectbox(
-            "Select Industry for Questions:",
-            all_sectors,
-            index=0,
-            key="news_agent_industry"
-        )
-        
-        st.markdown(f"**Current Industry:** 🎯 {selected_industry}")
-        
-        # Initialize chat history for news agent
-        if 'news_chat_history' not in st.session_state:
-            st.session_state.news_chat_history = []
-        
-        # Display chat history
-        chat_container = st.container()
-        with chat_container:
-            st.markdown("**Chat History:**")
+    st.subheader("💬 Ask News Agent")
+    
+    # Industry selector
+    selected_industry = st.selectbox(
+        "Select Industry for Questions:",
+        all_sectors,
+        index=0,
+        key="news_agent_industry"
+    )
+    
+    st.markdown(f"**Current Industry:** 🎯 {selected_industry}")
+    
+    # Initialize chat history for news agent
+    if 'news_chat_history' not in st.session_state:
+        st.session_state.news_chat_history = []
+    
+    # Display chat history
+    chat_container = st.container()
+    with chat_container:
+        st.markdown("**Chat History:**")
+        if st.session_state.news_chat_history:
             for message in st.session_state.news_chat_history:
                 if message["role"] == "user":
                     st.markdown(f"**👤 You:** {message['content']}")
                 else:
                     st.markdown(f"**🤖 Agent:** {message['content']}")
+        else:
+            st.info("💭 Ask a question to start chatting with the News Agent")
+    
+    # Input area
+    st.markdown("---")
+    user_input = st.text_input(
+        "Ask a question about the news:",
+        placeholder=f"e.g., What are the top stories for {selected_industry}? What should I know about recent trends?",
+        key="news_question_input"
+    )
+    
+    if user_input:
+        # Add user message to history
+        st.session_state.news_chat_history.append({
+            "role": "user",
+            "content": user_input
+        })
         
-        # Input area
-        st.markdown("---")
-        user_input = st.text_input(
-            "Ask a question about the news:",
-            placeholder=f"e.g., What are the top stories for {selected_industry}? What should I know about recent trends?",
-            key="news_question_input"
-        )
-        
-        if user_input:
-            # Add user message to history
+        # Process question and get agent response using CrewAI
+        with st.spinner("🤖 News Agent analyzing news and preparing response..."):
+            from agents import answer_news_agent_question
+            
+            # Call the news agent with the question and selected industry
+            agent_response = answer_news_agent_question(user_input, selected_industry)
+            
+            # Add agent response to history
             st.session_state.news_chat_history.append({
-                "role": "user",
-                "content": user_input
+                "role": "agent",
+                "content": agent_response
             })
             
-            # Process question and get agent response using CrewAI
-            with st.spinner("🤖 News Agent analyzing news and preparing response..."):
-                from agents import answer_news_agent_question
-                
-                # Call the news agent with the question and selected industry
-                agent_response = answer_news_agent_question(user_input, selected_industry)
-                
-                # Add agent response to history
-                st.session_state.news_chat_history.append({
-                    "role": "agent",
-                    "content": agent_response
-                })
-                
-                st.rerun()
-        
-        # Clear history button
+            st.rerun()
+    
+    # Clear history button
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
         if st.button("🔄 Clear Chat", use_container_width=True):
             st.session_state.news_chat_history = []
             st.rerun()
+    
+    st.divider()
+    st.caption("💡 News Agent uses Reuters & Bloomberg sources + NewsAPI to answer your questions with up-to-date market intelligence.")
 
 # ==================== TAB 2: STOCK ANALYSIS ====================
 with tab2:
