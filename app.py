@@ -525,6 +525,15 @@ with tab1:
     if 'news_chat_history' not in st.session_state:
         st.session_state.news_chat_history = []
     
+    # Initialize previous industry tracker
+    if 'news_agent_previous_industry' not in st.session_state:
+        st.session_state.news_agent_previous_industry = None
+    
+    # Clear chat history if industry changes
+    if st.session_state.news_agent_previous_industry != selected_industry:
+        st.session_state.news_chat_history = []
+        st.session_state.news_agent_previous_industry = selected_industry
+    
     # Display full chat history with follow-up support
     chat_container = st.container()
     with chat_container:

@@ -992,9 +992,15 @@ def answer_news_agent_question(user_question: str, industry: str) -> str:
         if duckduckgo_news.strip():
             combined_news += f"\n\n{duckduckgo_news}"
         
+        # Validation: Ensure news is for the selected industry
+        combined_news = f"**INDUSTRY FILTER: {industry}**\n\n{combined_news}"
+        
         # Create a task for News Manager to synthesize news into 6 bullet points
         news_synthesis_task = Task(
             description=f"""Analyze the provided news articles and synthesize them into exactly 6 bullet points that directly answer this question: "{user_question}"
+
+**CRITICAL INDUSTRY FILTER:** {industry}
+You MUST ONLY analyze news related to the {industry} sector. Do NOT include news from other sectors.
 
 Industry Context: {industry}
 
@@ -1004,15 +1010,16 @@ Industry Context: {industry}
 **REQUIREMENTS - MUST FOLLOW EXACTLY:**
 1. Provide EXACTLY 6 bullet points (no more, no less)
 2. Each bullet point must be 1-2 sentences maximum
-3. Each bullet point must directly relate to answering the user's question
-4. Include key facts, figures, dates, and company names where relevant
-5. Focus on actionable market insights
-6. Use professional but conversational tone
+3. Each bullet point must directly relate to answering the user's question about {industry}
+4. Only include news and insights specific to the {industry} sector
+5. Include key facts, figures, dates, and company names where relevant
+6. Focus on actionable market insights for {industry}
+7. Use professional but conversational tone
 
 **OUTPUT FORMAT:**
 Start directly with bullet points. No introduction, no numbers, no preamble. Each line should start with a dash (-) and be a complete, standalone insight.""",
             agent=news_manager,
-            expected_output="Exactly 6 bullet points answering the user's question about market news"
+            expected_output=f"Exactly 6 bullet points answering the user's question about {industry} market news"
         )
         
         # Create a crew with just the News Manager for this task
