@@ -102,19 +102,22 @@ def get_recommendations_for_sectors(sectors, leverage):
             {"ticker": "JPM", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.10, 0.20], "signal": "Recovery Rally"},
             {"ticker": "GS", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.17], "signal": "Trading Strength"},
             {"ticker": "BAC", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.18], "signal": "Credit Recovery"},
-            {"ticker": "WFC", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.18], "signal": "Earnings Beat"}
+            {"ticker": "WFC", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.18], "signal": "Earnings Beat"},
+            {"ticker": "MS", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.10, 0.20], "signal": "Capital Markets Upside"}
         ],
         "Healthcare": [
             {"ticker": "UNH", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.10, 0.20], "signal": "Regulatory Tailwinds"},
             {"ticker": "JNJ", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.16], "signal": "Strong Pipeline"},
             {"ticker": "PFE", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.18], "signal": "Pipeline Growth"},
-            {"ticker": "ABBV", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.18], "signal": "M&A Upside"}
+            {"ticker": "ABBV", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.18], "signal": "M&A Upside"},
+            {"ticker": "MRK", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.19], "signal": "Drug Approvals"}
         ],
         "Energy": [
             {"ticker": "XOM", "entry_offset": 0, "stop_offset": -0.10, "targets_offset": [0.09, 0.20], "signal": "Cycle Bottom"},
             {"ticker": "CVX", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.19], "signal": "Supply Recovery"},
             {"ticker": "MPC", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.18], "signal": "Margin Expansion"},
-            {"ticker": "COP", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.19], "signal": "Production Upside"}
+            {"ticker": "COP", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.19], "signal": "Production Upside"},
+            {"ticker": "PSX", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.10, 0.20], "signal": "Refining Strength"}
         ],
         "Retail": [
             {"ticker": "AMZN", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.20], "signal": "Margin Recovery"},
@@ -127,13 +130,15 @@ def get_recommendations_for_sectors(sectors, leverage):
             {"ticker": "COF", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.18], "signal": "Credit Strength"},
             {"ticker": "GPS", "entry_offset": 0, "stop_offset": -0.08, "targets_offset": [0.08, 0.20], "signal": "Retail Recovery"},
             {"ticker": "F", "entry_offset": 0, "stop_offset": -0.08, "targets_offset": [0.09, 0.18], "signal": "EV Leadership"},
-            {"ticker": "GM", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.19], "signal": "Supply Normalization"}
+            {"ticker": "GM", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.19], "signal": "Supply Normalization"},
+            {"ticker": "PG", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.07, 0.14], "signal": "Staples Strength"}
         ],
         "Real Estate": [
             {"ticker": "AMT", "entry_offset": 0, "stop_offset": -0.10, "targets_offset": [0.11, 0.26], "signal": "Rate Tailwinds"},
             {"ticker": "PLD", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.09, 0.19], "signal": "Logistics Growth"},
             {"ticker": "SPG", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.18], "signal": "Retail Recovery"},
-            {"ticker": "PSA", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.18], "signal": "Occupancy Strength"}
+            {"ticker": "PSA", "entry_offset": 0, "stop_offset": -0.07, "targets_offset": [0.08, 0.18], "signal": "Occupancy Strength"},
+            {"ticker": "DLR", "entry_offset": 0, "stop_offset": -0.08, "targets_offset": [0.11, 0.22], "signal": "Data Center Growth"}
         ]
     }
     
@@ -521,6 +526,70 @@ with tab1:
     
     st.markdown(f"**Current Industry:** 🎯 {selected_industry}")
     
+    # Display 5 stock options for selected industry
+    st.markdown("### 📋 Relevant Stocks for News Analysis")
+    
+    sector_stocks_news_display = {
+        "Technology": [
+            {"ticker": "TSLA", "company": "Tesla", "focus": "EV & AI"},
+            {"ticker": "META", "company": "Meta Platforms", "focus": "AI & Social"},
+            {"ticker": "NVDA", "company": "NVIDIA", "focus": "AI Chips"},
+            {"ticker": "AAPL", "company": "Apple", "focus": "Tech Products"},
+            {"ticker": "MSFT", "company": "Microsoft", "focus": "Cloud & AI"}
+        ],
+        "Finance": [
+            {"ticker": "JPM", "company": "JPMorgan", "focus": "Banking"},
+            {"ticker": "GS", "company": "Goldman Sachs", "focus": "Investment Banking"},
+            {"ticker": "BAC", "company": "Bank of America", "focus": "Retail Banking"},
+            {"ticker": "WFC", "company": "Wells Fargo", "focus": "Diversified Banking"},
+            {"ticker": "MS", "company": "Morgan Stanley", "focus": "Capital Markets"}
+        ],
+        "Healthcare": [
+            {"ticker": "UNH", "company": "UnitedHealth", "focus": "Health Insurance"},
+            {"ticker": "JNJ", "company": "Johnson & Johnson", "focus": "Pharma & Medical"},
+            {"ticker": "PFE", "company": "Pfizer", "focus": "Pharmaceuticals"},
+            {"ticker": "ABBV", "company": "AbbVie", "focus": "Biopharmaceuticals"},
+            {"ticker": "MRK", "company": "Merck", "focus": "Drug Development"}
+        ],
+        "Energy": [
+            {"ticker": "XOM", "company": "ExxonMobil", "focus": "Oil & Gas"},
+            {"ticker": "CVX", "company": "Chevron", "focus": "Energy"},
+            {"ticker": "MPC", "company": "Marathon Oil", "focus": "Refining"},
+            {"ticker": "COP", "company": "ConocoPhillips", "focus": "Exploration"},
+            {"ticker": "PSX", "company": "Phillips 66", "focus": "Midstream"}
+        ],
+        "Retail": [
+            {"ticker": "AMZN", "company": "Amazon", "focus": "E-commerce & Cloud"},
+            {"ticker": "HD", "company": "Home Depot", "focus": "Home Improvement"},
+            {"ticker": "NKE", "company": "Nike", "focus": "Athletic Apparel"},
+            {"ticker": "MCD", "company": "McDonald's", "focus": "Fast Food"},
+            {"ticker": "TJX", "company": "TJX Companies", "focus": "Discount Retail"}
+        ],
+        "Consumer": [
+            {"ticker": "COF", "company": "Capital One", "focus": "Financial Services"},
+            {"ticker": "GPS", "company": "Gap Inc.", "focus": "Apparel"},
+            {"ticker": "F", "company": "Ford", "focus": "Automobiles"},
+            {"ticker": "GM", "company": "General Motors", "focus": "Auto Manufacturing"},
+            {"ticker": "PG", "company": "Procter & Gamble", "focus": "Consumer Goods"}
+        ],
+        "Real Estate": [
+            {"ticker": "AMT", "company": "American Tower", "focus": "Towers"},
+            {"ticker": "PLD", "company": "Prologis", "focus": "Industrial Real Estate"},
+            {"ticker": "SPG", "company": "Simon Property", "focus": "Malls"},
+            {"ticker": "PSA", "company": "Public Storage", "focus": "Self-Storage"},
+            {"ticker": "DLR", "company": "Digital Realty", "focus": "Data Centers"}
+        ]
+    }
+    
+    if selected_industry in sector_stocks_news_display:
+        cols = st.columns(5)
+        for i, col in enumerate(cols):
+            stock = sector_stocks_news_display[selected_industry][i]
+            with col:
+                st.markdown(f"**{stock['ticker']}**\n{stock['company']}\n_{stock['focus']}_")
+    
+    st.divider()
+    
     # Initialize chat history for news agent
     if 'news_chat_history' not in st.session_state:
         st.session_state.news_chat_history = []
@@ -619,30 +688,6 @@ with tab2:
     - Risk-adjusted position sizing using current market data
     """)
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("📊 Stock Market Analyst")
-        with st.expander("Analyst Profile", expanded=False):
-            st.markdown("""
-            - **Experience:** 10 years technical & fundamental analysis
-            - **Data Source:** 🔴 LIVE Yahoo Finance prices
-            - **Expertise:** Pattern recognition, technical levels, breakdowns
-            - **Role:** Identify opportunities using live market data
-            - **Metrics:** Real-time price action, volumes, moving averages
-            """)
-    
-    with col2:
-        st.subheader("🎯 Portfolio Manager")
-        with st.expander("Manager Profile", expanded=False):
-            st.markdown("""
-            - **Experience:** 20 years portfolio strategy
-            - **Data Source:** 🔴 LIVE Yahoo Finance prices for sizing
-            - **Expertise:** Risk management, position sizing, correlation analysis
-            - **Role:** Build positions using current market prices
-            - **Tools:** Live pricing, leverage calculation, volatility sizing
-            """)
-    
     st.info("🔴 **LIVE Yahoo Finance Integration:** All prices and analysis use real-time stock data")
     
     st.markdown("### Stock Screening Results")
@@ -663,6 +708,74 @@ with tab2:
         current_sectors = [selected_industry]
     
     filtered_stocks, sector_stocks_db = get_stocks_for_analysis(current_sectors)
+    
+    # Display 5 stock options for selected industry
+    st.markdown("### 📌 Available Stocks in Selected Industry")
+    
+    # Get the sector stocks for display
+    sector_stocks_display = {
+        "Technology": [
+            {"ticker": "TSLA", "signal": "Death Cross", "pe": 78.5},
+            {"ticker": "META", "signal": "Failed Recovery", "pe": 24.3},
+            {"ticker": "NVDA", "signal": "Valuation Extreme", "pe": 65.2},
+            {"ticker": "AAPL", "signal": "Trend Weakness", "pe": 29.1},
+            {"ticker": "MSFT", "signal": "Consolidation", "pe": 35.4}
+        ],
+        "Finance": [
+            {"ticker": "JPM", "signal": "Rate Vulnerability", "pe": 12.3},
+            {"ticker": "GS", "signal": "Trading Weakness", "pe": 8.5},
+            {"ticker": "BAC", "signal": "Credit Stress", "pe": 9.2},
+            {"ticker": "WFC", "signal": "Earnings Concern", "pe": 10.1},
+            {"ticker": "MS", "signal": "Capital Markets Risk", "pe": 11.5}
+        ],
+        "Healthcare": [
+            {"ticker": "UNH", "signal": "Regulatory Risk", "pe": 28.5},
+            {"ticker": "JNJ", "signal": "Patent Cliff", "pe": 24.3},
+            {"ticker": "PFE", "signal": "Pipeline Risk", "pe": 12.1},
+            {"ticker": "ABBV", "signal": "M&A Concerns", "pe": 18.2},
+            {"ticker": "MRK", "signal": "Drug Development Risk", "pe": 16.5}
+        ],
+        "Energy": [
+            {"ticker": "XOM", "signal": "Peak Cycle", "pe": 11.2},
+            {"ticker": "CVX", "signal": "Supply Glut", "pe": 10.5},
+            {"ticker": "MPC", "signal": "Margin Pressure", "pe": 9.8},
+            {"ticker": "COP", "signal": "Production Decline", "pe": 9.5},
+            {"ticker": "PSX", "signal": "Crack Spread Risk", "pe": 8.2}
+        ],
+        "Retail": [
+            {"ticker": "AMZN", "signal": "Margin Pressure", "pe": 56.3},
+            {"ticker": "HD", "signal": "Housing Slowdown", "pe": 22.1},
+            {"ticker": "NKE", "signal": "Demand Weakness", "pe": 32.4},
+            {"ticker": "MCD", "signal": "Labor Cost Risk", "pe": 28.5},
+            {"ticker": "TJX", "signal": "Inventory Risk", "pe": 24.8}
+        ],
+        "Consumer": [
+            {"ticker": "COF", "signal": "Credit Stress", "pe": 14.2},
+            {"ticker": "GPS", "signal": "Retail Weakness", "pe": 5.8},
+            {"ticker": "F", "signal": "EV Transition", "pe": 4.2},
+            {"ticker": "GM", "signal": "Supply Chain", "pe": 6.5},
+            {"ticker": "PG", "signal": "Market Saturation", "pe": 24.1}
+        ],
+        "Real Estate": [
+            {"ticker": "AMT", "signal": "Rate Pressure", "pe": 18.5},
+            {"ticker": "PLD", "signal": "Logistics Slowdown", "pe": 22.1},
+            {"ticker": "SPG", "signal": "Retail Headwinds", "pe": 12.8},
+            {"ticker": "PSA", "signal": "Occupancy Risk", "pe": 28.3},
+            {"ticker": "DLR", "signal": "Data Center Oversupply", "pe": 26.4}
+        ]
+    }
+    
+    if selected_industry in sector_stocks_display:
+        st.markdown(f"**5 Analysis Options in {selected_industry}:**")
+        cols = st.columns(5)
+        for i, col in enumerate(cols):
+            stock = sector_stocks_display[selected_industry][i]
+            with col:
+                st.markdown(f"**{stock['ticker']}**")
+                st.caption(stock['signal'])
+                st.markdown(f"P/E: {stock['pe']}")
+    elif selected_industry == "All Sectors":
+        st.info("Select a specific sector to see the 5 available stock analysis options")
     
     # Build dynamic dataframe
     stocks_data = {
@@ -837,6 +950,75 @@ with tab3:
         index=0,
         key="long_recommendations_industry"
     )
+    
+    # Display 5 stock options for selected industry
+    st.markdown("### 📌 Available Stocks for Long CFD in Selected Industry")
+    
+    # Get the sector stocks for display
+    sector_stocks_long_display = {
+        "Technology": [
+            {"ticker": "TSLA", "signal": "Golden Cross", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.12, 0.24]},
+            {"ticker": "META", "signal": "Strong Breakout", "entry_offset": 0, "stop_offset": -0.08, "targets": [0.12, 0.23]},
+            {"ticker": "NVDA", "signal": "Bull Run", "entry_offset": 0, "stop_offset": -0.08, "targets": [0.15, 0.32]},
+            {"ticker": "AAPL", "signal": "Uptrend Confirmed", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.17]},
+            {"ticker": "MSFT", "signal": "Bullish Resolution", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.08, 0.17]}
+        ],
+        "Finance": [
+            {"ticker": "JPM", "signal": "Recovery Rally", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.10, 0.20]},
+            {"ticker": "GS", "signal": "Trading Strength", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.17]},
+            {"ticker": "BAC", "signal": "Credit Recovery", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.18]},
+            {"ticker": "WFC", "signal": "Earnings Beat", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.18]},
+            {"ticker": "MS", "signal": "Capital Markets Upside", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.10, 0.20]}
+        ],
+        "Healthcare": [
+            {"ticker": "UNH", "signal": "Regulatory Tailwinds", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.10, 0.20]},
+            {"ticker": "JNJ", "signal": "Strong Pipeline", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.08, 0.16]},
+            {"ticker": "PFE", "signal": "Pipeline Growth", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.08, 0.18]},
+            {"ticker": "ABBV", "signal": "M&A Upside", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.08, 0.18]},
+            {"ticker": "MRK", "signal": "Drug Approvals", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.19]}
+        ],
+        "Energy": [
+            {"ticker": "XOM", "signal": "Cycle Bottom", "entry_offset": 0, "stop_offset": -0.10, "targets": [0.09, 0.20]},
+            {"ticker": "CVX", "signal": "Supply Recovery", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.19]},
+            {"ticker": "MPC", "signal": "Margin Expansion", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.18]},
+            {"ticker": "COP", "signal": "Production Upside", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.08, 0.19]},
+            {"ticker": "PSX", "signal": "Refining Strength", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.10, 0.20]}
+        ],
+        "Retail": [
+            {"ticker": "AMZN", "signal": "Margin Recovery", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.20]},
+            {"ticker": "HD", "signal": "Housing Recovery", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.19]},
+            {"ticker": "NKE", "signal": "Demand Recovery", "entry_offset": 0, "stop_offset": -0.08, "targets": [0.11, 0.23]},
+            {"ticker": "MCD", "signal": "Labor Optimization", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.18]},
+            {"ticker": "TJX", "signal": "Inventory Strength", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.08, 0.18]}
+        ],
+        "Consumer": [
+            {"ticker": "COF", "signal": "Credit Strength", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.18]},
+            {"ticker": "GPS", "signal": "Retail Recovery", "entry_offset": 0, "stop_offset": -0.08, "targets": [0.08, 0.20]},
+            {"ticker": "F", "signal": "EV Leadership", "entry_offset": 0, "stop_offset": -0.08, "targets": [0.09, 0.18]},
+            {"ticker": "GM", "signal": "Supply Normalization", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.19]},
+            {"ticker": "PG", "signal": "Staples Strength", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.07, 0.14]}
+        ],
+        "Real Estate": [
+            {"ticker": "AMT", "signal": "Rate Tailwinds", "entry_offset": 0, "stop_offset": -0.10, "targets": [0.11, 0.26]},
+            {"ticker": "PLD", "signal": "Logistics Growth", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.09, 0.19]},
+            {"ticker": "SPG", "signal": "Retail Recovery", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.08, 0.18]},
+            {"ticker": "PSA", "signal": "Occupancy Strength", "entry_offset": 0, "stop_offset": -0.07, "targets": [0.08, 0.18]},
+            {"ticker": "DLR", "signal": "Data Center Growth", "entry_offset": 0, "stop_offset": -0.08, "targets": [0.11, 0.22]}
+        ]
+    }
+    
+    if selected_industry_tab3 in sector_stocks_long_display:
+        st.markdown(f"**5 Long CFD Options in {selected_industry_tab3}:**")
+        cols = st.columns(5)
+        for i, col in enumerate(cols):
+            stock = sector_stocks_long_display[selected_industry_tab3][i]
+            with col:
+                st.markdown(f"**{stock['ticker']}**")
+                st.caption(f"Signal: {stock['signal']}")
+                target_gain = stock['targets'][1] * 100
+                st.markdown(f"Gain Target: +{target_gain:.0f}%")
+    elif selected_industry_tab3 == "All Sectors":
+        st.info("Select a specific sector to see the 5 available long CFD options")
     
     # Default settings
     current_leverage = 5
