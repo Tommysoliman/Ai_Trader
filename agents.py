@@ -922,14 +922,34 @@ def get_nyt_news(sector: str) -> str:
             source = "New York Times"
             lead = article.get("lead_paragraph", "")[:120]
             pub_date = article.get("pub_date", "")[:10]
+            article_url = article.get("web_url", "")
             
             summary += f"**{idx}. {title}**\n"
             summary += f"   📊 {source} | {pub_date}\n"
-            summary += f"   {lead}...\n\n"
+            summary += f"   {lead}...\n"
+            if article_url:
+                summary += f"   🔗 [Read Full Article]({article_url})\n"
+            summary += "\n"
         
         return summary
     except Exception as e:
         return ""
+
+def _extract_sources_from_news(news_data: str) -> List[str]:
+    """Extract article URLs from formatted news data"""
+    import re
+    sources = []
+    
+    # Look for markdown links: [text](url)
+    link_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+    matches = re.findall(link_pattern, news_data)
+    
+    for text, url in matches:
+        if url.startswith('http'):
+            sources.append(f"- [{url}]({url})")
+    
+    return sources
+
 
 def answer_news_agent_question(user_question: str, industry: str) -> str:
     """
@@ -1003,6 +1023,9 @@ Start directly with bullet points. No introduction, no numbers, no preamble. Eac
             memory=False
         )
         
+        # Extract sources from combined news
+        sources = _extract_sources_from_news(combined_news)
+        
         # Execute the task with error handling
         try:
             result = news_crew.kickoff()
@@ -1025,6 +1048,9 @@ Start directly with bullet points. No introduction, no numbers, no preamble. Eac
                 # Count bullets in response
                 bullet_count = result_str.count('\n-') + (1 if result_str.startswith('-') else 0)
                 if bullet_count >= 4:  # Accept if at least 4 bullets (some formatting variations)
+                    # Add sources at the end
+                    if sources:
+                        result_str += "\n\n**📰 Sources:**\n" + "\n".join(sources)
                     return result_str
             
             # If we got an error or unexpected format - return formatted news from fallback
@@ -1049,6 +1075,7 @@ def _format_raw_news_summary(news_data: str, question: str, industry: str) -> st
     import re
     
     key_points = []
+    sources = []
     
     # Parse the news_data to extract article titles and information
     # Looking for pattern: "**N. Title**" followed by source and date
@@ -1086,6 +1113,13 @@ def _format_raw_news_summary(news_data: str, question: str, industry: str) -> st
                         clean_line = clean_line[:120] + "..."
                     key_points.append(f"- {clean_line}")
     
+    # Extract all URLs from news data
+    link_pattern = r'\[([^\]]+)\]\(([^)]+)\)'
+    link_matches = re.findall(link_pattern, news_data)
+    for text, url in link_matches:
+        if url.startswith('http') and url not in sources:
+            sources.append(f"- [{url}]({url})")
+    
     # Ensure we have exactly 6 points
     while len(key_points) < 6:
         key_points.append(f"- {industry} market news available from premium sources")
@@ -1104,7 +1138,13 @@ def _format_raw_news_summary(news_data: str, question: str, industry: str) -> st
     while len(unique_points) < 6:
         unique_points.append(f"- Recent {industry} sector developments and market intelligence")
     
-    return "\n".join(unique_points[:6])
+    result = "\n".join(unique_points[:6])
+    
+    # Add sources at the bottom if available
+    if sources:
+        result += "\n\n**📰 Sources:**\n" + "\n".join(sources[:5])
+    
+    return result
 
 # ==================== CREW SETUP ====================
 
@@ -1385,7 +1425,7 @@ def save_chat_to_memory(chat_type: str, industry: str, messages: List[Dict]) -> 
         return False
 
 
-def get_chat_history_from_memory(chat_type: str, industry: str = None, limit: int = 5) -> List[Dict]:
+def get_chat_history_from_memory(chat_type: str, industry: Optional[str] = None, limit: int = 5) -> List[Dict]:
     """
     Retrieve chat history from ChromaDB memory
     Returns the most recent chats
@@ -1410,6 +1450,8 @@ def get_chat_history_from_memory(chat_type: str, industry: str = None, limit: in
         # Parse and filter results
         memories = []
         for i, doc in enumerate(results["documents"]):
+            if results["metadatas"] is None:
+                continue
             metadata = results["metadatas"][i]
             
             # Filter by industry if specified
@@ -1452,10 +1494,12 @@ def clear_old_chat_memory(chat_type: str, days_old: int = 30) -> bool:
         all_records = collection.get()
         
         # Delete records older than cutoff
-        for i, doc_id in enumerate(all_records["ids"]):
-            timestamp = all_records["metadatas"][i].get("timestamp", "")
-            if timestamp < cutoff_date:
-                collection.delete(ids=[doc_id])
+        if all_records and all_records.get("metadatas"):
+            for i, doc_id in enumerate(all_records["ids"]):
+                if all_records["metadatas"] is not None and i < len(all_records["metadatas"]):
+                    timestamp = all_records["metadatas"][i].get("timestamp", "")
+                    if timestamp and isinstance(timestamp, str) and timestamp < cutoff_date:
+                        collection.delete(ids=[doc_id])
         
         return True
     except Exception as e:

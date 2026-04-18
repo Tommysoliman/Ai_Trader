@@ -525,19 +525,20 @@ with tab1:
     if 'news_chat_history' not in st.session_state:
         st.session_state.news_chat_history = []
     
-    # Display chat history - show only latest exchange
+    # Display full chat history with follow-up support
     chat_container = st.container()
     with chat_container:
-        st.markdown("**Latest Response:**")
+        st.markdown("**💬 Chat History:**")
         if st.session_state.news_chat_history:
-            # Show only the last 2 messages (latest question and response)
-            display_messages = st.session_state.news_chat_history[-2:] if len(st.session_state.news_chat_history) >= 2 else st.session_state.news_chat_history
-            
-            for message in display_messages:
+            # Show all messages for context-aware follow-ups
+            for i, message in enumerate(st.session_state.news_chat_history):
                 if message["role"] == "user":
                     st.markdown(f"**👤 You:** {message['content']}")
                 else:
                     st.markdown(f"**🤖 Agent:** {message['content']}")
+                # Add separator between exchanges
+                if i < len(st.session_state.news_chat_history) - 1:
+                    st.divider()
         else:
             st.info("💭 Ask a question to start chatting with the News Agent")
     
@@ -562,8 +563,20 @@ with tab1:
         with st.spinner("🤖 News Agent analyzing news and preparing response..."):
             from agents import answer_news_agent_question, save_chat_to_memory
             
+            # Build context from previous exchanges for follow-up questions
+            context_summary = ""
+            if len(st.session_state.news_chat_history) > 1:
+                context_summary = "\n\n**Previous Context:**\n"
+                for msg in st.session_state.news_chat_history[:-1]:
+                    if msg["role"] == "agent":
+                        context_summary += f"- {msg['content'][:200]}...\n"
+            
+            # Create context-aware question if this is a follow-up
+            is_followup = len(st.session_state.news_chat_history) > 1
+            full_question = f"{user_input}{context_summary}" if is_followup else user_input
+            
             # Call the news agent with the question and selected industry
-            agent_response = answer_news_agent_question(user_input, selected_industry)
+            agent_response = answer_news_agent_question(full_question, selected_industry)
             
             # Add agent response to history
             st.session_state.news_chat_history.append({
@@ -571,12 +584,8 @@ with tab1:
                 "content": agent_response
             })
             
-            # Save full chat to long-term memory before clearing
+            # Save full chat to long-term memory (all exchanges preserved)
             save_chat_to_memory("news", selected_industry, st.session_state.news_chat_history)
-            
-            # Keep only the latest exchange, archive the rest
-            if len(st.session_state.news_chat_history) > 2:
-                st.session_state.news_chat_history = st.session_state.news_chat_history[-2:]
             
             st.rerun()
     
@@ -729,19 +738,17 @@ with tab2:
     # Use the same industry selected in "Filter by Industry" dropdown
     stock_rec_industry = selected_industry if selected_industry != "All Sectors" else "Technology"
     
-    st.markdown(f"**📊 Q&A for {stock_rec_industry} Stocks:**")
-    
-    # Display chat history - show only latest exchange
-    st.markdown("**Latest Response:**")
+    st.markdown(f"**📊 Chat History for {stock_rec_industry} Stocks:**")
     if st.session_state.stock_chat_history:
-        # Show only the last 2 messages (latest question and response)
-        display_messages = st.session_state.stock_chat_history[-2:] if len(st.session_state.stock_chat_history) >= 2 else st.session_state.stock_chat_history
-        
-        for message in display_messages:
+        # Show all messages for context-aware follow-ups
+        for i, message in enumerate(st.session_state.stock_chat_history):
             if message["role"] == "user":
                 st.markdown(f"**👤 You:** {message['content']}")
             else:
                 st.markdown(f"**📊 Analyst:** {message['content']}")
+            # Add separator between exchanges
+            if i < len(st.session_state.stock_chat_history) - 1:
+                st.divider()
     else:
         st.info("💭 Ask the analyst for stock recommendations based on news and trends")
     
@@ -766,7 +773,19 @@ with tab2:
         with st.spinner("📊 Stock Analyst analyzing trends and generating recommendations..."):
             from agents import get_stock_analyst_recommendation, save_chat_to_memory
             
-            analyst_response = get_stock_analyst_recommendation(analyst_input, stock_rec_industry)
+            # Build context from previous exchanges for follow-up questions
+            context_summary = ""
+            if len(st.session_state.stock_chat_history) > 1:
+                context_summary = "\n\n**Previous Recommendations:**\n"
+                for msg in st.session_state.stock_chat_history[:-1]:
+                    if msg["role"] == "agent":
+                        context_summary += f"- {msg['content'][:200]}...\n"
+            
+            # Create context-aware question if this is a follow-up
+            is_followup = len(st.session_state.stock_chat_history) > 1
+            full_question = f"{analyst_input}{context_summary}" if is_followup else analyst_input
+            
+            analyst_response = get_stock_analyst_recommendation(full_question, stock_rec_industry)
             
             # Add analyst response to history
             st.session_state.stock_chat_history.append({
@@ -774,12 +793,8 @@ with tab2:
                 "content": analyst_response
             })
             
-            # Save full chat to long-term memory before clearing
+            # Save full chat to long-term memory (all exchanges preserved)
             save_chat_to_memory("stock", stock_rec_industry, st.session_state.stock_chat_history)
-            
-            # Keep only the latest exchange, archive the rest
-            if len(st.session_state.stock_chat_history) > 2:
-                st.session_state.stock_chat_history = st.session_state.stock_chat_history[-2:]
             
             st.rerun()
     
@@ -876,17 +891,18 @@ with tab3:
     if 'cfd_chat_history' not in st.session_state:
         st.session_state.cfd_chat_history = []
     
-    # Display chat history - show only latest exchange
-    st.markdown("**Latest Response:**")
+    # Display full chat history with follow-up support
+    st.markdown("**💬 Chat History:**")
     if st.session_state.cfd_chat_history:
-        # Show only the last 2 messages (latest question and response)
-        display_messages = st.session_state.cfd_chat_history[-2:] if len(st.session_state.cfd_chat_history) >= 2 else st.session_state.cfd_chat_history
-        
-        for message in display_messages:
+        # Show all messages for context-aware follow-ups
+        for i, message in enumerate(st.session_state.cfd_chat_history):
             if message["role"] == "user":
                 st.markdown(f"**👤 You:** {message['content']}")
             else:
                 st.markdown(f"**📊 CFD Analyst:** {message['content']}")
+            # Add separator between exchanges
+            if i < len(st.session_state.cfd_chat_history) - 1:
+                st.divider()
     else:
         st.info("💭 Ask about position sizing, risk management, entry/exit strategies, or portfolio allocation for your CFD positions")
     
@@ -911,8 +927,20 @@ with tab3:
         with st.spinner("📊 CFD Analyst analyzing your positions..."):
             from agents import get_cfd_analyst_response, save_chat_to_memory
             
+            # Build context from previous exchanges for follow-up questions
+            context_summary = ""
+            if len(st.session_state.cfd_chat_history) > 1:
+                context_summary = "\n\n**Previous Analysis:**\n"
+                for msg in st.session_state.cfd_chat_history[:-1]:
+                    if msg["role"] == "agent":
+                        context_summary += f"- {msg['content'][:200]}...\n"
+            
+            # Create context-aware question if this is a follow-up
+            is_followup = len(st.session_state.cfd_chat_history) > 1
+            full_question = f"{cfd_input}{context_summary}" if is_followup else cfd_input
+            
             sectors_list = current_sectors if current_sectors[0] != "All Sectors" else []
-            analyst_response = get_cfd_analyst_response(cfd_input, sectors_list if sectors_list else None)
+            analyst_response = get_cfd_analyst_response(full_question, sectors_list if sectors_list else None)
             
             # Add analyst response to history
             st.session_state.cfd_chat_history.append({
@@ -920,13 +948,9 @@ with tab3:
                 "content": analyst_response
             })
             
-            # Save full chat to long-term memory before clearing
+            # Save full chat to long-term memory (all exchanges preserved)
             sector_for_memory = current_sectors[0] if current_sectors[0] != "All Sectors" else "All Sectors"
             save_chat_to_memory("cfd", sector_for_memory, st.session_state.cfd_chat_history)
-            
-            # Keep only the latest exchange, archive the rest
-            if len(st.session_state.cfd_chat_history) > 2:
-                st.session_state.cfd_chat_history = st.session_state.cfd_chat_history[-2:]
             
             st.rerun()
     
