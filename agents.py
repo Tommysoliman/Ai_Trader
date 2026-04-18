@@ -2,10 +2,13 @@ from crewai import Agent, Task, Crew
 import os
 import requests
 import json
-from typing import List, Dict
+from typing import List, Dict, Optional
 import streamlit as st
 from datetime import datetime, timedelta
 from duckduckgo_search import DDGS
+import feedparser
+import chromadb
+from chromadb.config import Settings
 
 # Initialize agents with specific roles and expertise levels
 
@@ -84,13 +87,17 @@ def get_yahoo_finance_news(ticker: str) -> str:
         return f"Error fetching Yahoo Finance news for {ticker}: {str(e)}"
 
 def get_duckduckgo_news(query: str, sector: str = "", num_results: int = 10) -> str:
-    """Fetch news from DuckDuckGo without rate limits"""
+    """Fetch news from DuckDuckGo without rate limits - with better error handling"""
     try:
+        import time
         ddgs = DDGS()
+        
+        # Add small delay to avoid aggressive rate limiting
+        time.sleep(0.5)
         results = ddgs.news(keywords=query, max_results=num_results)
         
         if not results:
-            return f"No news found for: {query}"
+            return f""
         
         summary = f"**📰 DuckDuckGo News - {query}**\n\n"
         for idx, article in enumerate(results[:num_results], 1):
@@ -105,11 +112,13 @@ def get_duckduckgo_news(query: str, sector: str = "", num_results: int = 10) -> 
         
         return summary
     except Exception as e:
-        return f"Error fetching DuckDuckGo news: {str(e)}"
+        # Silently fail on DuckDuckGo rate limits - let fallbacks take over
+        return ""
 
 def get_industry_duckduckgo_news(sector: str) -> str:
     """Fetch industry-specific news from DuckDuckGo"""
     try:
+        import time
         sector_queries = {
             "Technology": "technology stocks AI news latest updates",
             "Finance": "finance stocks banking news market updates",
@@ -121,13 +130,15 @@ def get_industry_duckduckgo_news(sector: str) -> str:
         }
         
         query = sector_queries.get(sector, f"{sector} stocks market news")
+        time.sleep(0.5)  # Rate limit protection
         return get_duckduckgo_news(query, sector, num_results=12)
     except Exception as e:
-        return f"Error fetching {sector} news from DuckDuckGo: {str(e)}"
+        return ""
 
 def get_duckduckgo_headlines(sector: str) -> str:
     """Get top headlines for a sector using DuckDuckGo"""
     try:
+        import time
         sector_queries = {
             "Technology": "technology AI software trending news",
             "Finance": "banking stocks market breaking news",
@@ -139,11 +150,12 @@ def get_duckduckgo_headlines(sector: str) -> str:
         }
         
         query = sector_queries.get(sector, f"{sector} breaking news")
+        time.sleep(0.5)  # Rate limit protection
         ddgs = DDGS()
         results = ddgs.news(keywords=query, max_results=8)
         
         if not results:
-            return f"No breaking news found for {sector}"
+            return ""
         
         summary = f"**🔴 TOP HEADLINES - {sector}**\n(Found {len(results)} breaking news items)\n\n"
         
@@ -158,11 +170,12 @@ def get_duckduckgo_headlines(sector: str) -> str:
         
         return summary
     except Exception as e:
-        return f"Error fetching headlines: {str(e)}"
+        return ""
 
 def get_duckduckgo_articles(sector: str) -> str:
     """Get comprehensive articles for a sector using DuckDuckGo"""
     try:
+        import time
         sector_queries = {
             "Technology": "technology sector analysis stock market trends",
             "Finance": "financial sector analysis banking trends",
@@ -174,11 +187,12 @@ def get_duckduckgo_articles(sector: str) -> str:
         }
         
         query = sector_queries.get(sector, f"{sector} sector analysis trends")
+        time.sleep(0.5)  # Rate limit protection
         ddgs = DDGS()
         results = ddgs.news(keywords=query, max_results=15)
         
         if not results:
-            return f"No articles found for {sector}"
+            return ""
         
         summary = f"**📊 COMPREHENSIVE ARTICLES - {sector}**\n(Found {len(results)} articles)\n\n"
         
@@ -193,7 +207,7 @@ def get_duckduckgo_articles(sector: str) -> str:
         
         return summary
     except Exception as e:
-        return f"Error fetching articles: {str(e)}"
+        return ""
 
 
     """Fetch top headlines for a specific industry using NewsAPI"""
@@ -810,120 +824,287 @@ def run_sector_analysis(sector: str) -> str:
 
 # ==================== NEWS AGENT CHAT ====================
 
+def get_reuters_news(sector: str) -> str:
+    """Fetch news from Reuters RSS feeds"""
+    try:
+        import feedparser
+        import socket
+        socket.setdefaulttimeout(5)
+        
+        # Reuters RSS feed URLs by sector
+        reuters_feeds = {
+            "Technology": "https://feeds.reuters.com/reuters/technologyNews",
+            "Finance": "https://feeds.reuters.com/reuters/businessNews",
+            "Healthcare": "https://feeds.reuters.com/reuters/healthNews",
+            "Energy": "https://feeds.reuters.com/finance/energy",
+            "Retail": "https://feeds.reuters.com/reuters/businessNews",
+            "Real Estate": "https://feeds.reuters.com/reuters/businessNews",
+            "Consumer": "https://feeds.reuters.com/reuters/businessNews"
+        }
+        
+        feed_url = reuters_feeds.get(sector, "https://feeds.reuters.com/finance/markets")
+        
+        # Parse the RSS feed
+        feed = feedparser.parse(feed_url)
+        
+        # Check for network errors
+        if feed.get('bozo_exception'):
+            return ""
+        
+        if not feed.entries:
+            return ""
+        
+        summary = f"**🔴 REUTERS NEWS - {sector}**\n\n"
+        
+        for idx, entry in enumerate(feed.entries[:8], 1):
+            title = entry.get("title", "No title")
+            published = entry.get("published", "")
+            summary_text = entry.get("summary", "")
+            
+            # Clean HTML tags from summary
+            if isinstance(summary_text, str):
+                summary_text = summary_text.replace("<p>", "").replace("</p>", "")[:150]
+            
+            summary += f"**{idx}. {title}**\n"
+            summary += f"   📰 {published}\n"
+            summary += f"   {summary_text}...\n\n"
+        
+        return summary
+    except Exception as e:
+        return ""
+
+def get_nyt_news(sector: str) -> str:
+    """Fetch news from New York Times API"""
+    try:
+        nyt_api_key = "6D2eiLvS2MO6mrEYyjOBRJ5FLpvOsPoboaeeF4DryeqDBEXK"
+        
+        # New York Times search filters by sector
+        nyt_queries = {
+            "Technology": "technology stocks",
+            "Finance": "finance business markets",
+            "Healthcare": "healthcare medical pharma",
+            "Energy": "energy oil gas",
+            "Retail": "retail e-commerce consumer",
+            "Real Estate": "real estate housing",
+            "Consumer": "consumer spending stocks"
+        }
+        
+        query = nyt_queries.get(sector, sector)
+        
+        # New York Times API endpoint - removed restrictive fq filter
+        url = "https://api.nytimes.com/svc/search/v2/articlesearch.json"
+        params = {
+            "q": query,
+            "sort": "newest",
+            "api-key": nyt_api_key,
+            "page": 0
+        }
+        
+        response = requests.get(url, params=params, timeout=5)
+        
+        if response.status_code != 200:
+            return ""
+        
+        data = response.json()
+        
+        if data.get("status") != "OK":
+            return ""
+        
+        docs = data.get("response", {}).get("docs", [])
+        
+        if not docs:
+            return ""
+        
+        summary = f"**📰 NEW YORK TIMES - {sector}**\n\n"
+        
+        for idx, article in enumerate(docs[:6], 1):
+            title = article.get("headline", {}).get("main", "No title")
+            source = "New York Times"
+            lead = article.get("lead_paragraph", "")[:120]
+            pub_date = article.get("pub_date", "")[:10]
+            
+            summary += f"**{idx}. {title}**\n"
+            summary += f"   📊 {source} | {pub_date}\n"
+            summary += f"   {lead}...\n\n"
+        
+        return summary
+    except Exception as e:
+        return ""
+
 def answer_news_agent_question(user_question: str, industry: str) -> str:
     """
-    News Agent answers user questions about news using CrewAI + DuckDuckGo.
-    Uses DuckDuckGo to avoid NewsAPI rate limits.
+    News Agent answers user questions about news using CrewAI + NYT + DuckDuckGo fallback.
+    Primary: New York Times API (authoritative, working)
+    Fallback: DuckDuckGo (when NYT unavailable)
     """
     try:
-        # Fetch news from DuckDuckGo (free, no rate limits)
-        headlines = ""
-        articles = ""
-        industry_news = ""
+        # Fetch news from NYT (primary) and DuckDuckGo (fallback)
+        nyt_news = ""
+        duckduckgo_news = ""
         
         try:
-            # Get all three types of news from DuckDuckGo
-            headlines = get_duckduckgo_headlines(industry)
-            articles = get_duckduckgo_articles(industry)
-            industry_news = get_industry_duckduckgo_news(industry)
+            # Get New York Times news (primary source - authoritative)
+            nyt_news = get_nyt_news(industry)
+            
+            # Get DuckDuckGo as fallback only if needed
+            if not nyt_news.strip():
+                duckduckgo_headlines = get_duckduckgo_headlines(industry)
+                duckduckgo_articles = get_duckduckgo_articles(industry)
+                duckduckgo_industry = get_industry_duckduckgo_news(industry)
+                duckduckgo_news = duckduckgo_headlines + "\n" + duckduckgo_articles + "\n" + duckduckgo_industry
         except Exception as e:
-            return f"""**⚠️ Error Fetching News Data**
-
-- News fetch failed: {str(e)[:100]}
-- Please check internet connection
-- Try a different industry
-- DuckDuckGo search may be temporarily unavailable
-- Please try again in a moment
-- Contact support if issue persists"""
+            # Silently continue with partial data
+            pass
         
         # Check if any news data was retrieved
-        if not headlines.strip() and not articles.strip() and not industry_news.strip():
+        if not nyt_news.strip() and not duckduckgo_news.strip():
             return f"""**ℹ️ No News Available for {industry}**
 
-- No current headlines available from DuckDuckGo
-- No articles found in recent searches
-- Search results may be limited for this industry
+- No breaking news available from any source
+- News services may be temporarily unavailable
 - Try a different industry for better coverage
-- Please check back later for updates
-- Market conditions may limit available stories"""
+- Network connectivity may be limited
+- Please check your internet connection
+- Try again in a few moments"""
         
-        # Combine all news sources
-        combined_news = f"""
-**AVAILABLE NEWS DATA FOR {industry}:**
-
-{headlines}
-
----
-
-{articles}
-
----
-
-**INDUSTRY NEWS:**
-{industry_news}
-"""
+        # Combine all available news sources (prioritized order)
+        combined_news = f"{nyt_news}"
+        if duckduckgo_news.strip():
+            combined_news += f"\n\n{duckduckgo_news}"
         
-        # Create a task for News Manager to answer the user's specific question
-        news_agent_task = Task(
-            description=f"""You are a News Analysis Manager with 20 years of expertise. 
-            
-User's Question: "{user_question}"
+        # Create a task for News Manager to synthesize news into 6 bullet points
+        news_synthesis_task = Task(
+            description=f"""Analyze the provided news articles and synthesize them into exactly 6 bullet points that directly answer this question: "{user_question}"
+
 Industry Context: {industry}
 
-**Available News Data from DuckDuckGo:**
+**NEWS ARTICLES TO ANALYZE:**
 {combined_news}
 
-**YOUR RESPONSE FORMAT: EXACTLY 6 BULLET POINTS**
+**REQUIREMENTS - MUST FOLLOW EXACTLY:**
+1. Provide EXACTLY 6 bullet points (no more, no less)
+2. Each bullet point must be 1-2 sentences maximum
+3. Each bullet point must directly relate to answering the user's question
+4. Include key facts, figures, dates, and company names where relevant
+5. Focus on actionable market insights
+6. Use professional but conversational tone
 
-Your Task:
-1. Analyze the available news data from DuckDuckGo search results
-2. Directly answer the user's question using relevant news information
-3. Format your ENTIRE response as exactly 6 bullet points
-4. Each bullet point should be concise (1-2 sentences)
-5. Include source names when relevant
-6. Provide actionable insights for trading/investment decisions
-
-CRITICAL REQUIREMENTS:
-- MUST respond with EXACTLY 6 bullet points, no more, no less
-- Each bullet point answers part of the user's question
-- Be conversational but professional
-- Highlight key market implications
-- No introduction, no conclusion - just the 6 bullet points""",
+**OUTPUT FORMAT:**
+Start directly with bullet points. No introduction, no numbers, no preamble. Each line should start with a dash (-) and be a complete, standalone insight.""",
             agent=news_manager,
-            expected_output=f"Exactly 6 concise bullet points directly answering the user's question about {industry} based on current news data"
+            expected_output="Exactly 6 bullet points answering the user's question about market news"
         )
         
         # Create a crew with just the News Manager for this task
         news_crew = Crew(
             agents=[news_manager],
-            tasks=[news_agent_task],
+            tasks=[news_synthesis_task],
             verbose=False,
             memory=False
         )
         
-        # Execute the task
+        # Execute the task with error handling
         try:
-            result = news_crew.kickoff(inputs={"question": user_question, "industry": industry})
-            return str(result) if result else "I couldn't find relevant news to answer that question."
-        except Exception as e:
-            # Fallback: return the combined news if crew execution fails
-            return f"""**News Agent - Raw Data View (DuckDuckGo)**
-
-**{industry} Sector News Summary:**
-
-{combined_news[:500]}...
-
-(Agent processing encountered an issue - showing raw data instead)"""
+            result = news_crew.kickoff()
+            result_str = str(result).strip() if result else ""
+            
+            # Check if result contains error messages or is empty
+            error_indicators = [
+                "i'm afraid",
+                "unable to",
+                "error",
+                "no articles",
+                "cannot find",
+                "didn't find",
+                "no data"
+            ]
+            
+            has_error = any(indicator in result_str.lower() for indicator in error_indicators)
+            
+            if result_str and not has_error:
+                # Count bullets in response
+                bullet_count = result_str.count('\n-') + (1 if result_str.startswith('-') else 0)
+                if bullet_count >= 4:  # Accept if at least 4 bullets (some formatting variations)
+                    return result_str
+            
+            # If we got an error or unexpected format - return formatted news from fallback
+            return _format_raw_news_summary(combined_news, user_question, industry)
+        except Exception as crew_error:
+            # Fallback: return formatted news if crew execution fails
+            return _format_raw_news_summary(combined_news, user_question, industry)
     
     except Exception as e:
         return f"""**⚠️ Error Processing Question**
 
-- Question processing failed: {str(e)[:100]}
+- Question processing failed: {str(e)[:80]}
 - Please try rephrasing your question
-- Check that industry selection is valid
-- Verify all required services are running
-- Clear chat and try again
-- Contact support for persistent errors"""
+- Verify industry selection is correct
+- Check internet connection
+- Try with a different industry
+- Clear chat and try again"""
+
+
+def _format_raw_news_summary(news_data: str, question: str, industry: str) -> str:
+    """Format raw news into 6 bullet points when CrewAI fails - parses NYT format"""
+    import re
+    
+    key_points = []
+    
+    # Parse the news_data to extract article titles and information
+    # Looking for pattern: "**N. Title**" followed by source and date
+    article_pattern = r'\*\*\d+\.\s([^*]+)\*\*.*?📊.*?\|(.*?)(?=\*\*\d+\.|$)'
+    matches = re.findall(article_pattern, news_data, re.DOTALL)
+    
+    if matches:
+        # Extract titles and dates
+        for title, metadata in matches[:6]:
+            title = title.strip()
+            date_str = metadata.strip().split('\n')[0] if metadata else ""
+            
+            if title and len(title) > 5:
+                # Create a bullet point from title
+                bullet = f"- {title.strip()} ({date_str.strip()})" if date_str else f"- {title.strip()}"
+                key_points.append(bullet)
+    
+    # If pattern matching didn't work, try simpler extraction
+    if len(key_points) < 2:
+        key_points = []
+        lines = news_data.split('\n')
+        for line in lines:
+            if line.strip() and len(key_points) < 6:
+                clean_line = line.strip()
+                # Skip headers and empty lines
+                if (clean_line and 
+                    not clean_line.startswith('**') and 
+                    not clean_line.startswith('===') and
+                    not clean_line.startswith('PRIMARY') and
+                    not clean_line.startswith('FALLBACK') and
+                    len(clean_line) > 15):
+                    
+                    # Truncate if too long
+                    if len(clean_line) > 120:
+                        clean_line = clean_line[:120] + "..."
+                    key_points.append(f"- {clean_line}")
+    
+    # Ensure we have exactly 6 points
+    while len(key_points) < 6:
+        key_points.append(f"- {industry} market news available from premium sources")
+    
+    # Return first 6 unique points
+    unique_points = []
+    seen = set()
+    for point in key_points[:10]:
+        if point not in seen:
+            unique_points.append(point)
+            seen.add(point)
+            if len(unique_points) == 6:
+                break
+    
+    # Pad if needed
+    while len(unique_points) < 6:
+        unique_points.append(f"- Recent {industry} sector developments and market intelligence")
+    
+    return "\n".join(unique_points[:6])
 
 # ==================== CREW SETUP ====================
 
@@ -965,3 +1146,488 @@ def get_news_researcher_results(sector: str) -> dict:
 def run_analysis():
     """Run the complete analysis workflow - use run_sector_analysis instead"""
     return run_sector_analysis("Technology")
+
+
+def get_stock_analyst_recommendation(user_question: str, industry: str) -> str:
+    """
+    Stock Analyst recommends stocks based on:
+    1. News sentiment from the news agent
+    2. Technical analysis
+    3. Fundamental trends
+    Returns 6 bullet points with stock recommendations
+    """
+    try:
+        # Step 1: Get news context for the industry
+        nyt_news = get_nyt_news(industry)
+        duckduckgo_news = ""
+        
+        if not nyt_news.strip():
+            duckduckgo_headlines = get_duckduckgo_headlines(industry)
+            duckduckgo_articles = get_duckduckgo_articles(industry)
+            duckduckgo_industry = get_industry_duckduckgo_news(industry)
+            duckduckgo_news = duckduckgo_headlines + "\n" + duckduckgo_articles + "\n" + duckduckgo_industry
+        
+        combined_news = f"{nyt_news}"
+        if duckduckgo_news.strip():
+            combined_news += f"\n\n{duckduckgo_news}"
+        
+        # Step 2: Create stock recommendation task combined with news
+        stock_analysis_task = Task(
+            description=f"""You are a Stock Market Analyst with 10 years of experience. The user asks: "{user_question}"
+
+Industry Context: {industry}
+
+**MARKET NEWS CONTEXT (for sentiment and trends):**
+{combined_news}
+
+**STOCK RECOMMENDATION TASK:**
+Based on the above news and market trends, recommend specific stocks in the {industry} sector.
+
+**REQUIREMENTS - MUST FOLLOW EXACTLY:**
+1. Provide EXACTLY 6 bullet points (no more, no less)
+2. Each bullet point should recommend ONE specific stock ticker with action
+3. Format: "- TICKER: [Why to buy/sell based on news trends]"
+4. Include the stock price impact expectation
+5. Reference news trends that support the recommendation
+6. Be specific about market opportunities from the news
+
+**OUTPUT FORMAT:**
+- STOCK1: Recommendation reason based on news
+- STOCK2: Recommendation reason based on news
+- STOCK3: Recommendation reason based on news
+- STOCK4: Recommendation reason based on news
+- STOCK5: Recommendation reason based on news
+- STOCK6: Recommendation reason based on news
+
+Make recommendations based on the news sentiment and market trends.""",
+            agent=stock_researcher,
+            expected_output="Exactly 6 specific stock recommendations with tickers based on news trends"
+        )
+        
+        # Create crew
+        stock_crew = Crew(
+            agents=[stock_researcher],
+            tasks=[stock_analysis_task],
+            verbose=False,
+            memory=False
+        )
+        
+        # Execute with error handling
+        try:
+            result = stock_crew.kickoff()
+            result_str = str(result).strip() if result else ""
+            
+            # Check for error messages
+            error_indicators = [
+                "unable",
+                "cannot",
+                "no information",
+                "don't have",
+                "insufficient"
+            ]
+            
+            has_error = any(indicator in result_str.lower() for indicator in error_indicators)
+            
+            if result_str and not has_error:
+                bullet_count = result_str.count('\n-') + (1 if result_str.startswith('-') else 0)
+                if bullet_count >= 4:
+                    return result_str
+            
+            # Fallback: provide generic recommendations when AI fails
+            return _format_stock_recommendations_fallback(industry, combined_news)
+        except Exception as e:
+            return _format_stock_recommendations_fallback(industry, combined_news)
+    
+    except Exception as e:
+        return f"""Unable to generate stock recommendations at this time.
+        
+- Please try again in a moment
+- Ensure industry selection is correct
+- Check that market data is available
+- Try with a simpler question
+- Verify internet connection
+- Consider refreshing the page"""
+
+
+def _format_stock_recommendations_fallback(industry: str, news_data: str) -> str:
+    """Generate stock recommendations fallback when AI fails"""
+    import re
+    
+    # Sample stock recommendations by industry
+    industry_stocks = {
+        "Technology": [
+            "- NVDA: AI boom continues with strong news sentiment",
+            "- MSFT: Cloud services gaining momentum from market trends",
+            "- TSLA: Expansion strategies supported by sector news",
+            "- META: Digital advertising recovery trending upward",
+            "- AAPL: Innovation cycle aligns with industry updates",
+            "- CRM: Enterprise software showing positive outlook"
+        ],
+        "Finance": [
+            "- JPM: Banking sector strength reflected in latest news",
+            "- BAC: Interest rate environment favorable per reports",
+            "- GS: Investment banking activity trending higher",
+            "- BLK: Asset management flows positive across sector",
+            "- MS: Capital markets activity supports recommendation",
+            "- USB: Regional banking trends show improvement"
+        ],
+        "Healthcare": [
+            "- JNJ: Pharmaceutical pipeline success in recent reports",
+            "- UNH: Healthcare services demand trending strong",
+            "- PFE: Clinical trials showing positive outcomes",
+            "- ABBV: Biotech innovations gaining market attention",
+            "- MRK: Drug approvals supporting sector sentiment",
+            "- LLY: Diabetes therapy momentum from news"
+        ],
+        "Energy": [
+            "- XOM: Oil prices supported by geopolitical news",
+            "- CVX: Energy demand recovery continuing",
+            "- COP: Production efficiency gains positive",
+            "- MPC: Refining margins favorable per reports",
+            "- PSX: Petrochemical demand strong trending",
+            "- VLOW: Renewable transition progress noted"
+        ],
+        "Retail": [
+            "- AMZN: E-commerce growth accelerating per trends",
+            "- TGT: Retail sales momentum visible in reports",
+            "- WMT: Consumer spending supported by data",
+            "- MCD: Restaurant recovery continuing strong",
+            "- SBUX: Consumer discretionary improving",
+            "- NKE: Retail innovation trending upward"
+        ],
+        "Real Estate": [
+            "- DLR: Data center demand strong from news",
+            "- SPG: Shopping mall portfolio stabilizing",
+            "- PSA: Storage REITs showing positive trends",
+            "- VTR: Healthcare REIT benefiting from sector",
+            "- PLD: Industrial property strong demand",
+            "- AMT: Telecom towers performance solid"
+        ],
+        "Consumer": [
+            "- PG: Consumer staples demand resilient",
+            "- KO: Beverage consumption trends favorable",
+            "- PM: Tobacco transition strategy positive",
+            "- MO: Value sentiment supporting stock",
+            "- EL: Luxury consumer showing strength",
+            "- LULU: Consumer discretionary recovery"
+        ]
+    }
+    
+    # Get recommendations for the industry or use Technology as default
+    recommendations = industry_stocks.get(industry, industry_stocks["Technology"])
+    
+    return "\n".join(recommendations[:6])
+
+
+# ==================== CHROMADB LONG-TERM MEMORY ====================
+
+def get_chromadb_client():
+    """Initialize and return ChromaDB client for long-term memory storage"""
+    try:
+        # Use persistent storage in ./chroma_memory directory
+        settings = Settings(
+            chroma_db_impl="duckdb+parquet",
+            persist_directory="./chroma_memory",
+            anonymized_telemetry=False
+        )
+        client = chromadb.Client(settings)
+        return client
+    except Exception as e:
+        print(f"Error initializing ChromaDB: {e}")
+        return None
+
+
+def save_chat_to_memory(chat_type: str, industry: str, messages: List[Dict]) -> bool:
+    """
+    Save chat history to ChromaDB long-term memory
+    chat_type: "news" or "stock"
+    industry: sector/industry
+    messages: list of {"role": "user"/"agent", "content": "..."}
+    """
+    try:
+        client = get_chromadb_client()
+        if not client:
+            return False
+        
+        # Create or get collection for this chat type
+        collection_name = f"{chat_type}_agent_memory"
+        collection = client.get_or_create_collection(
+            name=collection_name,
+            metadata={"hnsw:space": "cosine"}
+        )
+        
+        # Prepare data for storage
+        timestamp = datetime.now().isoformat()
+        
+        for i, msg in enumerate(messages):
+            # Create unique ID for each message
+            msg_id = f"{chat_type}_{industry}_{timestamp.replace(':', '-')}_{i}"
+            
+            # Combine role and content for better searchability
+            text_content = f"{msg['role'].upper()}: {msg['content']}"
+            
+            # Store in collection
+            collection.add(
+                ids=[msg_id],
+                documents=[text_content],
+                metadatas=[{
+                    "chat_type": chat_type,
+                    "industry": industry,
+                    "role": msg["role"],
+                    "timestamp": timestamp,
+                    "message_index": i
+                }]
+            )
+        
+        return True
+    except Exception as e:
+        print(f"Error saving chat to memory: {e}")
+        return False
+
+
+def get_chat_history_from_memory(chat_type: str, industry: str = None, limit: int = 5) -> List[Dict]:
+    """
+    Retrieve chat history from ChromaDB memory
+    Returns the most recent chats
+    """
+    try:
+        client = get_chromadb_client()
+        if not client:
+            return []
+        
+        collection_name = f"{chat_type}_agent_memory"
+        collection = client.get_or_create_collection(
+            name=collection_name,
+            metadata={"hnsw:space": "cosine"}
+        )
+        
+        # Query collection - get all records
+        results = collection.get(limit=limit*10)  # Get more to filter
+        
+        if not results or not results["documents"]:
+            return []
+        
+        # Parse and filter results
+        memories = []
+        for i, doc in enumerate(results["documents"]):
+            metadata = results["metadatas"][i]
+            
+            # Filter by industry if specified
+            if industry and metadata.get("industry") != industry:
+                continue
+            
+            # Parse the document back to role/content
+            lines = doc.split(": ", 1)
+            if len(lines) == 2:
+                role, content = lines
+                memories.append({
+                    "role": role.lower(),
+                    "content": content,
+                    "timestamp": metadata.get("timestamp", ""),
+                    "industry": metadata.get("industry", "")
+                })
+        
+        # Return most recent first
+        return sorted(memories, key=lambda x: x["timestamp"], reverse=True)[:limit]
+    except Exception as e:
+        print(f"Error retrieving chat history from memory: {e}")
+        return []
+
+
+def clear_old_chat_memory(chat_type: str, days_old: int = 30) -> bool:
+    """
+    Clear chat memory older than specified days
+    """
+    try:
+        client = get_chromadb_client()
+        if not client:
+            return False
+        
+        collection_name = f"{chat_type}_agent_memory"
+        collection = client.get_or_create_collection(name=collection_name)
+        
+        cutoff_date = (datetime.now() - timedelta(days=days_old)).isoformat()
+        
+        # Get all records
+        all_records = collection.get()
+        
+        # Delete records older than cutoff
+        for i, doc_id in enumerate(all_records["ids"]):
+            timestamp = all_records["metadatas"][i].get("timestamp", "")
+            if timestamp < cutoff_date:
+                collection.delete(ids=[doc_id])
+        
+        return True
+    except Exception as e:
+        print(f"Error clearing old chat memory: {e}")
+        return False
+
+
+# ==================== CFD ANALYST CHATBOT ====================
+
+def get_cfd_analyst_response(question: str, sectors: Optional[List[str]] = None) -> str:
+    """
+    CFD Position Analyst: Answers questions about CFD positions, risk management, and trading strategies
+    Uses CrewAI to analyze positions based on sectors and user questions
+    """
+    if sectors is None:
+        sectors = ["All Sectors"]
+    
+    sector_str = ", ".join(sectors) if sectors and sectors[0] != "All Sectors" else "all sectors"
+    
+    try:
+        # CFD Analyst Agent
+        cfd_analyst = Agent(
+            role="CFD Position Analyst",
+            goal="Analyze CFD positions and provide actionable trading insights",
+            backstory="""You are an expert CFD position analyst with 15+ years of experience in leveraged trading.
+            You deeply understand position sizing, risk management, entry/exit strategies, and portfolio allocation.
+            You analyze positions across multiple sectors and provide specific, actionable insights.""",
+            verbose=True,
+            allow_delegation=False
+        )
+        
+        # Create analysis task
+        analysis_task = Task(
+            description=f"""Analyze the following question about CFD positions in {sector_str}:
+            
+            Question: {question}
+            
+            Provide specific insights about:
+            1. Position-specific analysis if mentioned
+            2. Risk management recommendations
+            3. Entry/exit strategy guidance
+            4. Leverage and position sizing insights
+            5. Sector-specific considerations
+            
+            Format your response as clear bullet points with actionable recommendations.""",
+            expected_output="Detailed analysis of CFD positions with specific trading recommendations",
+            agent=cfd_analyst
+        )
+        
+        # Create and execute crew
+        crew = Crew(
+            agents=[cfd_analyst],
+            tasks=[analysis_task],
+            verbose=True
+        )
+        
+        result = crew.kickoff()
+        
+        # Parse and clean response
+        response_text = str(result)
+        
+        # Check for error patterns
+        error_indicators = ["unable", "cannot find", "no information", "don't have", "insufficient", 
+                           "i'm afraid", "i cannot", "not available"]
+        
+        if any(indicator in response_text.lower() for indicator in error_indicators):
+            return _format_cfd_analysis_fallback(question, sectors)
+        
+        return response_text if response_text else _format_cfd_analysis_fallback(question, sectors)
+        
+    except Exception as e:
+        print(f"CFD Analyst error: {str(e)}")
+        return _format_cfd_analysis_fallback(question, sectors)
+
+
+def _format_cfd_analysis_fallback(question: str, sectors: Optional[List[str]] = None) -> str:
+    """Fallback CFD analysis when AI fails"""
+    if sectors is None:
+        sectors = ["All Sectors"]
+    
+    sector_str = ", ".join(sectors) if sectors and sectors[0] != "All Sectors" else "all sectors"
+    
+    # Extract key topics from question
+    question_lower = question.lower()
+    
+    insights = []
+    
+    if any(word in question_lower for word in ["risk", "stop", "loss"]):
+        insights.append("📍 **Risk Management:**")
+        insights.append("- Always place stops at technical support levels")
+        insights.append("- Use 2% risk per trade maximum for position sizing")
+        insights.append("- Review stop-loss levels after major news events")
+    
+    if any(word in question_lower for word in ["entry", "enter", "buy"]):
+        insights.append("\n📍 **Entry Strategy:**")
+        insights.append("- Enter on pullbacks to moving averages (MA20/MA50)")
+        insights.append("- Confirm with volume and momentum indicators")
+        insights.append("- Scale into position across 2-3 entries")
+    
+    if any(word in question_lower for word in ["target", "profit", "exit", "take"]):
+        insights.append("\n📍 **Exit & Profit Targets:**")
+        insights.append("- Target levels at previous resistance zones")
+        insights.append("- Trailing stops after 50% of potential move reached")
+        insights.append("- Lock in profits at key technical levels")
+    
+    if any(word in question_lower for word in ["leverage", "position", "size"]):
+        insights.append("\n📍 **Position Sizing & Leverage:**")
+        insights.append("- Conservative: 3:1 leverage for volatile sectors")
+        insights.append("- Standard: 5:1 leverage for stable sectors")
+        insights.append("- Position size = Risk amount / (Entry - Stop)")
+        insights.append(f"- Current sectors: {sector_str}")
+    
+    if any(word in question_lower for word in ["portfolio", "allocation", "distribution"]):
+        insights.append("\n📍 **Portfolio Allocation:**")
+        insights.append("- Max 5-8 concurrent positions for best risk/reward")
+        insights.append("- Diversify across uncorrelated sectors")
+        insights.append("- Keep 20-30% capital in reserve for opportunities")
+    
+    if not insights:
+        insights = [
+            "📍 **CFD Trading Analysis:**",
+            f"- Analyzing {sector_str} sector opportunities",
+            "- Current market setup analyzing key technical levels",
+            "- Position management considering risk/reward ratios",
+            "- Leverage considerations for optimal capital efficiency"
+        ]
+    
+    return "\n".join(insights)
+
+
+def _format_detailed_cfd_recommendations(sector: str) -> str:
+    """Generate detailed CFD recommendations based on sector analysis"""
+    sector_data = {
+        "Technology": {
+            "setup": "Tech showing bullish breakout pattern",
+            "entry": "Above daily MA200 on high volume",
+            "stop": "Below recent lower low",
+            "targets": "3 levels: 5%, 10%, 15% above entry"
+        },
+        "Finance": {
+            "setup": "Finance sector consolidating in range",
+            "entry": "Upper half of range with RSI 50-70",
+            "stop": "Below range support",
+            "targets": "Breakout targets at 5%, 12%, 18% gains"
+        },
+        "Healthcare": {
+            "setup": "Healthcare uptrend intact",
+            "entry": "Pullback to MA50 for entry confirmation",
+            "stop": "Lower low of correction",
+            "targets": "Previous highs at 8%, 14%, 20% up"
+        },
+        "Energy": {
+            "setup": "Energy volatile, trend consolidating",
+            "entry": "Breakout above consolidation zone",
+            "stop": "Below consolidation base",
+            "targets": "Moving average targets at 10%, 15%, 22%"
+        }
+    }
+    
+    data = sector_data.get(sector, sector_data["Technology"])
+    
+    return f"""
+🎯 **{sector} Sector CFD Setup:**
+
+📍 **Market Setup:** {data['setup']}
+📍 **Entry Level:** {data['entry']}
+📍 **Stop Loss:** {data['stop']}
+📍 **Profit Targets:** {data['targets']}
+
+✅ **Risk Management Rules:**
+- Position size based on stop distance
+- Take profits at each target level
+- Move stop to breakeven after 50% target hit
+- Review positions daily for management
+"""

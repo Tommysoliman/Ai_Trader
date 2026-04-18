@@ -525,12 +525,15 @@ with tab1:
     if 'news_chat_history' not in st.session_state:
         st.session_state.news_chat_history = []
     
-    # Display chat history
+    # Display chat history - show only latest exchange
     chat_container = st.container()
     with chat_container:
-        st.markdown("**Chat History:**")
+        st.markdown("**Latest Response:**")
         if st.session_state.news_chat_history:
-            for message in st.session_state.news_chat_history:
+            # Show only the last 2 messages (latest question and response)
+            display_messages = st.session_state.news_chat_history[-2:] if len(st.session_state.news_chat_history) >= 2 else st.session_state.news_chat_history
+            
+            for message in display_messages:
                 if message["role"] == "user":
                     st.markdown(f"**👤 You:** {message['content']}")
                 else:
@@ -538,15 +541,17 @@ with tab1:
         else:
             st.info("💭 Ask a question to start chatting with the News Agent")
     
-    # Input area
+    # Input area - use form to prevent repeated processing
     st.markdown("---")
-    user_input = st.text_input(
-        "Ask a question about the news:",
-        placeholder=f"e.g., What are the top stories for {selected_industry}? What should I know about recent trends?",
-        key="news_question_input"
-    )
+    with st.form("news_question_form", clear_on_submit=True):
+        user_input = st.text_input(
+            "Ask a question about the news:",
+            placeholder=f"e.g., What are the top stories for {selected_industry}? What should I know about recent trends?",
+            key="news_question_input"
+        )
+        submitted = st.form_submit_button("🔍 Ask Agent", use_container_width=True)
     
-    if user_input:
+    if submitted and user_input:
         # Add user message to history
         st.session_state.news_chat_history.append({
             "role": "user",
@@ -555,7 +560,7 @@ with tab1:
         
         # Process question and get agent response using CrewAI
         with st.spinner("🤖 News Agent analyzing news and preparing response..."):
-            from agents import answer_news_agent_question
+            from agents import answer_news_agent_question, save_chat_to_memory
             
             # Call the news agent with the question and selected industry
             agent_response = answer_news_agent_question(user_input, selected_industry)
@@ -566,12 +571,19 @@ with tab1:
                 "content": agent_response
             })
             
+            # Save full chat to long-term memory before clearing
+            save_chat_to_memory("news", selected_industry, st.session_state.news_chat_history)
+            
+            # Keep only the latest exchange, archive the rest
+            if len(st.session_state.news_chat_history) > 2:
+                st.session_state.news_chat_history = st.session_state.news_chat_history[-2:]
+            
             st.rerun()
     
-    # Clear history button
+    # Start new chat button
     col1, col2, col3 = st.columns([1, 1, 1])
     with col2:
-        if st.button("🔄 Clear Chat", use_container_width=True):
+        if st.button("🔄 New Chat", use_container_width=True):
             st.session_state.news_chat_history = []
             st.rerun()
     
@@ -704,6 +716,82 @@ with tab2:
         st.write(f"Stock {selected_stock} shows multiple bullish signals based on {sector_display} sector analysis...")
     
     st.info(f"📌 **Analyzed Sectors:** {', '.join(current_sectors)}")
+    
+    # ==================== STOCK ANALYST CHATBOT ====================
+    st.divider()
+    st.subheader("💬 Ask Stock Analyst for Recommendations")
+    st.markdown("Get AI-powered stock recommendations based on news trends and technical analysis in real-time.")
+    
+    # Initialize chat history for stock analyst
+    if 'stock_chat_history' not in st.session_state:
+        st.session_state.stock_chat_history = []
+    
+    # Use the same industry selected in "Filter by Industry" dropdown
+    stock_rec_industry = selected_industry if selected_industry != "All Sectors" else "Technology"
+    
+    st.markdown(f"**📊 Q&A for {stock_rec_industry} Stocks:**")
+    
+    # Display chat history - show only latest exchange
+    st.markdown("**Latest Response:**")
+    if st.session_state.stock_chat_history:
+        # Show only the last 2 messages (latest question and response)
+        display_messages = st.session_state.stock_chat_history[-2:] if len(st.session_state.stock_chat_history) >= 2 else st.session_state.stock_chat_history
+        
+        for message in display_messages:
+            if message["role"] == "user":
+                st.markdown(f"**👤 You:** {message['content']}")
+            else:
+                st.markdown(f"**📊 Analyst:** {message['content']}")
+    else:
+        st.info("💭 Ask the analyst for stock recommendations based on news and trends")
+    
+    # Input form
+    st.markdown("---")
+    with st.form("stock_analyst_form", clear_on_submit=True):
+        analyst_input = st.text_input(
+            "Ask for stock recommendations:",
+            placeholder=f"e.g., Which {stock_rec_industry} stocks should I buy based on recent news? What's your pick for this sector?",
+            key="stock_analyst_input"
+        )
+        analyst_submitted = st.form_submit_button("🔍 Get Recommendations", use_container_width=True)
+    
+    if analyst_submitted and analyst_input:
+        # Add user question to history
+        st.session_state.stock_chat_history.append({
+            "role": "user",
+            "content": analyst_input
+        })
+        
+        # Get analyst recommendations
+        with st.spinner("📊 Stock Analyst analyzing trends and generating recommendations..."):
+            from agents import get_stock_analyst_recommendation, save_chat_to_memory
+            
+            analyst_response = get_stock_analyst_recommendation(analyst_input, stock_rec_industry)
+            
+            # Add analyst response to history
+            st.session_state.stock_chat_history.append({
+                "role": "agent",
+                "content": analyst_response
+            })
+            
+            # Save full chat to long-term memory before clearing
+            save_chat_to_memory("stock", stock_rec_industry, st.session_state.stock_chat_history)
+            
+            # Keep only the latest exchange, archive the rest
+            if len(st.session_state.stock_chat_history) > 2:
+                st.session_state.stock_chat_history = st.session_state.stock_chat_history[-2:]
+            
+            st.rerun()
+    
+    # Start new chat button
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.button("🔄 New Chat", key="stock_clear_btn", use_container_width=True):
+            st.session_state.stock_chat_history = []
+            st.rerun()
+    
+    st.divider()
+    st.caption("💡 Stock Analyst uses news sentiment + technical analysis + fundamental trends to recommend stocks with the highest potential based on current market conditions.")
 
 # ==================== TAB 3: LONG RECOMMENDATIONS ====================
 with tab3:
@@ -778,6 +866,79 @@ with tab3:
                 st.caption(f"Signal: {stock['signal']}")
     
     st.info(f"📌 **Filtered by:** {', '.join(current_sectors)} | **Leverage:** {'Enabled' if use_leverage_setting else 'Disabled'} | **Position Size:** ${current_position_size}")
+    
+    # ==================== CFD ANALYST CHATBOT ====================
+    st.divider()
+    st.subheader("💬 Ask CFD Analyst About Your Positions")
+    st.markdown("Get expert analysis on your CFD positions, risk management, entry/exit strategies, and portfolio optimization.")
+    
+    # Initialize chat history for CFD analyst
+    if 'cfd_chat_history' not in st.session_state:
+        st.session_state.cfd_chat_history = []
+    
+    # Display chat history - show only latest exchange
+    st.markdown("**Latest Response:**")
+    if st.session_state.cfd_chat_history:
+        # Show only the last 2 messages (latest question and response)
+        display_messages = st.session_state.cfd_chat_history[-2:] if len(st.session_state.cfd_chat_history) >= 2 else st.session_state.cfd_chat_history
+        
+        for message in display_messages:
+            if message["role"] == "user":
+                st.markdown(f"**👤 You:** {message['content']}")
+            else:
+                st.markdown(f"**📊 CFD Analyst:** {message['content']}")
+    else:
+        st.info("💭 Ask about position sizing, risk management, entry/exit strategies, or portfolio allocation for your CFD positions")
+    
+    # Input form
+    st.markdown("---")
+    with st.form("cfd_analyst_form", clear_on_submit=True):
+        cfd_input = st.text_input(
+            "Ask CFD Analyst:",
+            placeholder=f"e.g., How should I size this position? What's the optimal stop loss level? How do I manage multiple positions?",
+            key="cfd_analyst_input"
+        )
+        cfd_submitted = st.form_submit_button("🔍 Ask Analyst", use_container_width=True)
+    
+    if cfd_submitted and cfd_input:
+        # Add user question to history
+        st.session_state.cfd_chat_history.append({
+            "role": "user",
+            "content": cfd_input
+        })
+        
+        # Get CFD analyst response
+        with st.spinner("📊 CFD Analyst analyzing your positions..."):
+            from agents import get_cfd_analyst_response, save_chat_to_memory
+            
+            sectors_list = current_sectors if current_sectors[0] != "All Sectors" else []
+            analyst_response = get_cfd_analyst_response(cfd_input, sectors_list if sectors_list else None)
+            
+            # Add analyst response to history
+            st.session_state.cfd_chat_history.append({
+                "role": "agent",
+                "content": analyst_response
+            })
+            
+            # Save full chat to long-term memory before clearing
+            sector_for_memory = current_sectors[0] if current_sectors[0] != "All Sectors" else "All Sectors"
+            save_chat_to_memory("cfd", sector_for_memory, st.session_state.cfd_chat_history)
+            
+            # Keep only the latest exchange, archive the rest
+            if len(st.session_state.cfd_chat_history) > 2:
+                st.session_state.cfd_chat_history = st.session_state.cfd_chat_history[-2:]
+            
+            st.rerun()
+    
+    # Start new chat button
+    col1, col2, col3 = st.columns([1, 1, 1])
+    with col2:
+        if st.button("🔄 New Chat", key="cfd_clear_btn", use_container_width=True):
+            st.session_state.cfd_chat_history = []
+            st.rerun()
+    
+    st.divider()
+    st.caption("💡 CFD Analyst provides expert insights on position management, risk/reward ratios, entry strategies, leverage optimization, and portfolio allocation for your trading.")
 
 # ==================== TAB 4: PORTFOLIO STRATEGY ====================
 with tab4:
