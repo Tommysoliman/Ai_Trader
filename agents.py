@@ -744,23 +744,24 @@ Industry Context: {industry}
 **Available News Data:**
 {combined_news}
 
+**YOUR RESPONSE FORMAT: EXACTLY 6 BULLET POINTS**
+
 Your Task:
 1. Analyze the available news data from multiple sources (top headlines, comprehensive articles, Reuters & Bloomberg)
 2. Directly answer the user's question using relevant information from the news
-3. Cite specific articles, sources, and dates when relevant
-4. Provide analysis, context, and implications for trading/investment decisions
-5. Be concise but thorough in your response
-6. If the question asks for trends, identify recurring themes across multiple sources
-7. If the question asks about breaking news, prioritize recent headlines
-8. If the question asks about analysis, provide deeper insights from comprehensive articles
+3. Format your ENTIRE response as exactly 6 bullet points
+4. Each bullet point should be concise (1-2 sentences)
+5. Include source names and dates when relevant
+6. Provide actionable insights for trading/investment decisions
 
-IMPORTANT: 
-- Answer the user's specific question directly
-- Use data from the news provided above
+CRITICAL REQUIREMENTS:
+- MUST respond with EXACTLY 6 bullet points, no more, no less
+- Each bullet point answers part of the user's question
 - Be conversational but professional
-- Highlight key takeaways relevant to market trading""",
+- Highlight key market implications
+- No introduction, no conclusion - just the 6 bullet points""",
             agent=news_manager,
-            expected_output=f"A focused, direct answer to the user's question about {industry} based on current news data from multiple sources"
+            expected_output=f"Exactly 6 concise bullet points directly answering the user's question about {industry} based on current news data"
         )
         
         # Create a crew with just the News Manager for this task
