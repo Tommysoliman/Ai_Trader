@@ -608,39 +608,17 @@ with tab1:
                 "content": user_input
             })
             
-            # Process question and get agent response
-            with st.spinner("🤖 News Agent analyzing..."):
-                from agents import get_industry_top_headlines, get_industry_everything_articles, search_reuters_bloomberg_news
+            # Process question and get agent response using CrewAI
+            with st.spinner("🤖 News Agent analyzing news and preparing response..."):
+                from agents import answer_news_agent_question
                 
-                # Prepare agent response based on user question
-                question_lower = user_input.lower()
-                response = ""
-                
-                # Route question to appropriate news tool
-                if any(word in question_lower for word in ["breaking", "latest", "top", "headline", "news"]):
-                    # Get top headlines
-                    response = get_industry_top_headlines(selected_industry)
-                    response += "\n\n**Agent Analysis:** These are the breaking headlines most relevant to your query."
-                
-                elif any(word in question_lower for word in ["trend", "article", "deep", "comprehensive", "analysis", "learn"]):
-                    # Get comprehensive articles
-                    response = get_industry_everything_articles(selected_industry)
-                    response += "\n\n**Agent Analysis:** Here are comprehensive articles analyzing trends in this sector."
-                
-                elif any(word in question_lower for word in ["what", "tell me", "about", "know", "sector", "industry"]):
-                    # Combine both for full picture
-                    headlines = get_industry_top_headlines(selected_industry)
-                    articles = get_industry_everything_articles(selected_industry)
-                    response = f"{headlines}\n\n---\n\n{articles}\n\n**Agent Analysis:** This is a complete overview of the {selected_industry} sector news including breaking news and deeper analysis."
-                
-                else:
-                    # Default: search Reuters & Bloomberg
-                    response = search_reuters_bloomberg_news(user_input, selected_industry)
+                # Call the news agent with the question and selected industry
+                agent_response = answer_news_agent_question(user_input, selected_industry)
                 
                 # Add agent response to history
                 st.session_state.news_chat_history.append({
                     "role": "agent",
-                    "content": response
+                    "content": agent_response
                 })
                 
                 st.rerun()

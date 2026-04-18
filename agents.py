@@ -697,6 +697,91 @@ def run_sector_analysis(sector: str) -> str:
         print(f"[❌ Agent Analysis] Failed: {str(e)}")
         return ""
 
+# ==================== NEWS AGENT CHAT ====================
+
+def answer_news_agent_question(user_question: str, industry: str) -> str:
+    """
+    News Agent answers user questions about news using CrewAI.
+    Intelligently routes to appropriate news tools based on question context.
+    """
+    try:
+        # Determine which news data to fetch based on question keywords
+        question_lower = user_question.lower()
+        
+        # Fetch relevant news
+        headlines = ""
+        articles = ""
+        bloomberg_news = ""
+        
+        # Always get complete news for the industry
+        headlines = get_industry_top_headlines(industry)
+        articles = get_industry_everything_articles(industry)
+        bloomberg_news = search_reuters_bloomberg_news(industry, industry)
+        
+        # Combine all news sources
+        combined_news = f"""
+**AVAILABLE NEWS DATA FOR {industry}:**
+
+{headlines}
+
+---
+
+{articles}
+
+---
+
+**REUTERS & BLOOMBERG NEWS:**
+{bloomberg_news}
+"""
+        
+        # Create a task for News Manager to answer the user's specific question
+        news_agent_task = Task(
+            description=f"""You are a News Analysis Manager with 20 years of expertise. 
+            
+User's Question: "{user_question}"
+Industry Context: {industry}
+
+**Available News Data:**
+{combined_news}
+
+Your Task:
+1. Analyze the available news data from multiple sources (top headlines, comprehensive articles, Reuters & Bloomberg)
+2. Directly answer the user's question using relevant information from the news
+3. Cite specific articles, sources, and dates when relevant
+4. Provide analysis, context, and implications for trading/investment decisions
+5. Be concise but thorough in your response
+6. If the question asks for trends, identify recurring themes across multiple sources
+7. If the question asks about breaking news, prioritize recent headlines
+8. If the question asks about analysis, provide deeper insights from comprehensive articles
+
+IMPORTANT: 
+- Answer the user's specific question directly
+- Use data from the news provided above
+- Be conversational but professional
+- Highlight key takeaways relevant to market trading""",
+            agent=news_manager,
+            expected_output=f"A focused, direct answer to the user's question about {industry} based on current news data from multiple sources"
+        )
+        
+        # Create a crew with just the News Manager for this task
+        news_crew = Crew(
+            agents=[news_manager],
+            tasks=[news_agent_task],
+            verbose=False,
+            memory=False
+        )
+        
+        # Execute the task
+        try:
+            result = news_crew.kickoff(inputs={"question": user_question, "industry": industry})
+            return str(result) if result else "I couldn't find relevant news to answer that question."
+        except Exception as e:
+            # Fallback: return the combined news if crew execution fails
+            return f"**News Agent Response:**\n\nBased on current {industry} news:\n\n{combined_news[:1000]}...\n\n(Full analysis unavailable - showing available news data)"
+    
+    except Exception as e:
+        return f"Error processing your question: {str(e)}"
+
 # ==================== CREW SETUP ====================
 
 def create_crew():
