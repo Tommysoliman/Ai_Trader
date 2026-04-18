@@ -705,6 +705,23 @@ def answer_news_agent_question(user_question: str, industry: str) -> str:
     Intelligently routes to appropriate news tools based on question context.
     """
     try:
+        # Check if API key is available
+        api_key = ""
+        try:
+            api_key = st.secrets.get("NEWSAPI_KEY", "")
+        except Exception:
+            api_key = os.getenv("NEWSAPI_KEY", "")
+        
+        if not api_key:
+            return """**⚠️ NewsAPI Key Not Found**
+
+- API Key required: Set NEWSAPI_KEY environment variable or in Streamlit secrets
+- No live news data available without valid API key
+- Please configure NewsAPI credentials to enable news fetching
+- Contact support for API key setup assistance
+- Temporary: Please retry after configuration is complete
+- Alternative: Check .streamlit/secrets.toml file exists and has NEWSAPI_KEY"""
+        
         # Determine which news data to fetch based on question keywords
         question_lower = user_question.lower()
         
@@ -713,10 +730,31 @@ def answer_news_agent_question(user_question: str, industry: str) -> str:
         articles = ""
         bloomberg_news = ""
         
-        # Always get complete news for the industry
-        headlines = get_industry_top_headlines(industry)
-        articles = get_industry_everything_articles(industry)
-        bloomberg_news = search_reuters_bloomberg_news(industry, industry)
+        try:
+            # Always get complete news for the industry
+            headlines = get_industry_top_headlines(industry)
+            articles = get_industry_everything_articles(industry)
+            bloomberg_news = search_reuters_bloomberg_news(industry, industry)
+        except Exception as e:
+            return f"""**⚠️ Error Fetching News Data**
+
+- News fetch failed: {str(e)[:100]}
+- Please verify NewsAPI key is valid and active
+- Check internet connection status
+- API rate limits may have been exceeded
+- Try again in a few moments
+- Contact support if issue persists"""
+        
+        # Check if any news data was retrieved
+        if not headlines.strip() and not articles.strip() and not bloomberg_news.strip():
+            return f"""**ℹ️ No News Available for {industry}**
+
+- No current headlines available from NewsAPI
+- No articles found in the last 7 days
+- Reuters & Bloomberg sources may be unavailable
+- Try a different industry for better coverage
+- Please check back later for updates
+- Market conditions may limit available stories"""
         
         # Combine all news sources
         combined_news = f"""
@@ -778,10 +816,23 @@ CRITICAL REQUIREMENTS:
             return str(result) if result else "I couldn't find relevant news to answer that question."
         except Exception as e:
             # Fallback: return the combined news if crew execution fails
-            return f"**News Agent Response:**\n\nBased on current {industry} news:\n\n{combined_news[:1000]}...\n\n(Full analysis unavailable - showing available news data)"
+            return f"""**News Agent - Raw Data View**
+
+**{industry} Sector News Summary:**
+
+{combined_news[:500]}...
+
+(Agent processing encountered an issue - showing raw data instead)"""
     
     except Exception as e:
-        return f"Error processing your question: {str(e)}"
+        return f"""**⚠️ Error Processing Question**
+
+- Question processing failed: {str(e)[:100]}
+- Please try rephrasing your question
+- Check that industry selection is valid
+- Verify all required services are running
+- Clear chat and try again
+- Contact support for persistent errors"""
 
 # ==================== CREW SETUP ====================
 
