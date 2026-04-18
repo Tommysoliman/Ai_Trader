@@ -494,7 +494,7 @@ tab1, tab2, tab3, tab4, tab5 = st.tabs([
 # ==================== TAB 1: NEWS ANALYSIS ====================
 with tab1:
     st.header("📰 News Researcher - Multi-Agent Market Intelligence")
-    st.markdown("**🤖 AI-Powered News Analysis:**")
+    st.markdown("**🤖 AI-Powered News Analysis & Chat:**")
     st.markdown("""
     News Researcher (Senior, 10 years) searches **Reuters & Bloomberg** for sector-specific news:
     - Identifies breaking news and market-moving events
@@ -506,58 +506,149 @@ with tab1:
     # Define all sectors
     all_sectors = ["Technology", "Finance", "Healthcare", "Energy", "Retail", "Real Estate", "Consumer"]
     
-    st.info("⚡ News Researcher is actively searching Reuters & Bloomberg for each sector...")
+    # Create two columns: News + Agent Chat
+    col_news, col_chat = st.columns([1.5, 1])
     
-    # Fetch and display News Researcher results for each sector
-    for sector in all_sectors:
-        with st.expander(f"📰 {sector} - Reuters & Bloomberg News", expanded=(sector == "Technology")):
-            col1, col2 = st.columns([3, 1])
-            
-            with col1:
-                st.markdown(f"**News Researcher searching {sector} sector news...**")
+    with col_news:
+        st.subheader("📰 News by Sector")
+        
+        st.info("⚡ News Researcher is actively searching Reuters & Bloomberg for each sector...")
+        
+        # Fetch and display News Researcher results for each sector
+        for sector in all_sectors:
+            with st.expander(f"📰 {sector} - Reuters & Bloomberg News", expanded=(sector == "Technology")):
+                col1, col2 = st.columns([3, 1])
                 
-                # Call News Researcher agent
-                with st.spinner(f"🔍 Searching Reuters & Bloomberg for {sector}..."):
-                    researcher_results = get_news_researcher_results(sector)
-                
-                if researcher_results["status"] == "success":
-                    news_content = researcher_results["news"]
+                with col1:
+                    st.markdown(f"**News Researcher searching {sector} sector news...**")
                     
-                    if news_content:
-                        # Parse and display the news
-                        st.markdown(news_content)
-                    else:
-                        st.info(f"No Reuters/Bloomberg articles found for {sector}")
+                    # Call News Researcher agent
+                    with st.spinner(f"🔍 Searching Reuters & Bloomberg for {sector}..."):
+                        researcher_results = get_news_researcher_results(sector)
+                    
+                    if researcher_results["status"] == "success":
+                        news_content = researcher_results["news"]
                         
-                        # Show fallback from direct API
-                        sector_queries = {
-                            "Technology": "technology stocks AI earnings machine learning",
-                            "Finance": "banking financial sector stocks earnings",
-                            "Healthcare": "healthcare pharma pharmaceutical stocks",
-                            "Energy": "oil energy gas stocks renewable",
-                            "Retail": "retail consumer stocks e-commerce",
-                            "Real Estate": "real estate REIT property stocks",
-                            "Consumer": "consumer credit stocks spending"
-                        }
-                        
-                        query = sector_queries.get(sector, sector)
-                        fallback_news = fetch_financial_news_24h(query, limit=5, sector=sector)
-                        
-                        if fallback_news:
-                            st.markdown(f"**📊 Alternative News Sources for {sector}:**")
-                            for idx, item in enumerate(fallback_news[:3], 1):
-                                st.markdown(f"**{idx}. {item.get('title', 'Market Update')}**")
-                                summary = item.get('summary', item.get('description', 'No details'))
-                                st.caption(f"{summary[:150]}... | {item.get('source', 'News Source')}")
+                        if news_content:
+                            # Parse and display the news
+                            st.markdown(news_content)
+                        else:
+                            st.info(f"No Reuters/Bloomberg articles found for {sector}")
+                            
+                            # Show fallback from direct API
+                            sector_queries = {
+                                "Technology": "technology stocks AI earnings machine learning",
+                                "Finance": "banking financial sector stocks earnings",
+                                "Healthcare": "healthcare pharma pharmaceutical stocks",
+                                "Energy": "oil energy gas stocks renewable",
+                                "Retail": "retail consumer stocks e-commerce",
+                                "Real Estate": "real estate REIT property stocks",
+                                "Consumer": "consumer credit stocks spending"
+                            }
+                            
+                            query = sector_queries.get(sector, sector)
+                            fallback_news = fetch_financial_news_24h(query, limit=5, sector=sector)
+                            
+                            if fallback_news:
+                                st.markdown(f"**📊 Alternative News Sources for {sector}:**")
+                                for idx, item in enumerate(fallback_news[:3], 1):
+                                    st.markdown(f"**{idx}. {item.get('title', 'Market Update')}**")
+                                    summary = item.get('summary', item.get('description', 'No details'))
+                                    st.caption(f"{summary[:150]}... | {item.get('source', 'News Source')}")
+                    
+                    elif researcher_results["status"] == "error":
+                        st.error(f"Error fetching news: {researcher_results['news']}")
                 
-                elif researcher_results["status"] == "error":
-                    st.error(f"Error fetching news: {researcher_results['news']}")
-            
-            with col2:
-                st.metric(f"{sector}\nNews Status", "✅ LIVE")
+                with col2:
+                    st.metric(f"{sector}\nNews Status", "✅ LIVE")
+        
+        st.divider()
+        st.caption("💡 News Researcher updates every 2 minutes. Showing live Reuters & Bloomberg articles by sector.")
     
-    st.divider()
-    st.caption("💡 News Researcher updates every 2 minutes. Showing live Reuters & Bloomberg articles by sector.")
+    # ==================== NEWS AGENT CHATBOX ====================
+    with col_chat:
+        st.subheader("💬 Ask News Agent")
+        
+        # Industry selector
+        selected_industry = st.selectbox(
+            "Select Industry for Questions:",
+            all_sectors,
+            index=0,
+            key="news_agent_industry"
+        )
+        
+        st.markdown(f"**Current Industry:** 🎯 {selected_industry}")
+        
+        # Initialize chat history for news agent
+        if 'news_chat_history' not in st.session_state:
+            st.session_state.news_chat_history = []
+        
+        # Display chat history
+        chat_container = st.container()
+        with chat_container:
+            st.markdown("**Chat History:**")
+            for message in st.session_state.news_chat_history:
+                if message["role"] == "user":
+                    st.markdown(f"**👤 You:** {message['content']}")
+                else:
+                    st.markdown(f"**🤖 Agent:** {message['content']}")
+        
+        # Input area
+        st.markdown("---")
+        user_input = st.text_input(
+            "Ask a question about the news:",
+            placeholder=f"e.g., What are the top stories for {selected_industry}? What should I know about recent trends?",
+            key="news_question_input"
+        )
+        
+        if user_input:
+            # Add user message to history
+            st.session_state.news_chat_history.append({
+                "role": "user",
+                "content": user_input
+            })
+            
+            # Process question and get agent response
+            with st.spinner("🤖 News Agent analyzing..."):
+                from agents import get_industry_top_headlines, get_industry_everything_articles, search_reuters_bloomberg_news
+                
+                # Prepare agent response based on user question
+                question_lower = user_input.lower()
+                response = ""
+                
+                # Route question to appropriate news tool
+                if any(word in question_lower for word in ["breaking", "latest", "top", "headline", "news"]):
+                    # Get top headlines
+                    response = get_industry_top_headlines(selected_industry)
+                    response += "\n\n**Agent Analysis:** These are the breaking headlines most relevant to your query."
+                
+                elif any(word in question_lower for word in ["trend", "article", "deep", "comprehensive", "analysis", "learn"]):
+                    # Get comprehensive articles
+                    response = get_industry_everything_articles(selected_industry)
+                    response += "\n\n**Agent Analysis:** Here are comprehensive articles analyzing trends in this sector."
+                
+                elif any(word in question_lower for word in ["what", "tell me", "about", "know", "sector", "industry"]):
+                    # Combine both for full picture
+                    headlines = get_industry_top_headlines(selected_industry)
+                    articles = get_industry_everything_articles(selected_industry)
+                    response = f"{headlines}\n\n---\n\n{articles}\n\n**Agent Analysis:** This is a complete overview of the {selected_industry} sector news including breaking news and deeper analysis."
+                
+                else:
+                    # Default: search Reuters & Bloomberg
+                    response = search_reuters_bloomberg_news(user_input, selected_industry)
+                
+                # Add agent response to history
+                st.session_state.news_chat_history.append({
+                    "role": "agent",
+                    "content": response
+                })
+                
+                st.rerun()
+        
+        # Clear history button
+        if st.button("🔄 Clear Chat", use_container_width=True):
+            st.session_state.news_chat_history = []
+            st.rerun()
 
 # ==================== TAB 2: STOCK ANALYSIS ====================
 with tab2:
