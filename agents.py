@@ -5,6 +5,7 @@ import json
 from typing import List, Dict
 import streamlit as st
 from datetime import datetime, timedelta
+from duckduckgo_search import DDGS
 
 # Initialize agents with specific roles and expertise levels
 
@@ -82,7 +83,119 @@ def get_yahoo_finance_news(ticker: str) -> str:
     except Exception as e:
         return f"Error fetching Yahoo Finance news for {ticker}: {str(e)}"
 
-def get_industry_top_headlines(sector: str) -> str:
+def get_duckduckgo_news(query: str, sector: str = "", num_results: int = 10) -> str:
+    """Fetch news from DuckDuckGo without rate limits"""
+    try:
+        ddgs = DDGS()
+        results = ddgs.news(keywords=query, max_results=num_results)
+        
+        if not results:
+            return f"No news found for: {query}"
+        
+        summary = f"**📰 DuckDuckGo News - {query}**\n\n"
+        for idx, article in enumerate(results[:num_results], 1):
+            title = article.get("title", "No title")
+            source = article.get("source", "Unknown source")
+            body = article.get("body", "")
+            date = article.get("date", "")
+            
+            summary += f"**{idx}. {title}**\n"
+            summary += f"   📰 {source} | {date}\n"
+            summary += f"   {body[:150] if body else 'No description'}...\n\n"
+        
+        return summary
+    except Exception as e:
+        return f"Error fetching DuckDuckGo news: {str(e)}"
+
+def get_industry_duckduckgo_news(sector: str) -> str:
+    """Fetch industry-specific news from DuckDuckGo"""
+    try:
+        sector_queries = {
+            "Technology": "technology stocks AI news latest updates",
+            "Finance": "finance stocks banking news market updates",
+            "Healthcare": "healthcare pharmaceutical stocks news updates",
+            "Energy": "energy oil gas stocks renewable news",
+            "Retail": "retail e-commerce consumer stocks news",
+            "Real Estate": "real estate REIT property stocks news",
+            "Consumer": "consumer credit stocks spending news"
+        }
+        
+        query = sector_queries.get(sector, f"{sector} stocks market news")
+        return get_duckduckgo_news(query, sector, num_results=12)
+    except Exception as e:
+        return f"Error fetching {sector} news from DuckDuckGo: {str(e)}"
+
+def get_duckduckgo_headlines(sector: str) -> str:
+    """Get top headlines for a sector using DuckDuckGo"""
+    try:
+        sector_queries = {
+            "Technology": "technology AI software trending news",
+            "Finance": "banking stocks market breaking news",
+            "Healthcare": "pharma clinical trials FDA approval news",
+            "Energy": "oil energy gas renewable news today",
+            "Retail": "retail consumer sales e-commerce today",
+            "Real Estate": "real estate property REIT news today",
+            "Consumer": "consumer spending credit employment today"
+        }
+        
+        query = sector_queries.get(sector, f"{sector} breaking news")
+        ddgs = DDGS()
+        results = ddgs.news(keywords=query, max_results=8)
+        
+        if not results:
+            return f"No breaking news found for {sector}"
+        
+        summary = f"**🔴 TOP HEADLINES - {sector}**\n(Found {len(results)} breaking news items)\n\n"
+        
+        for idx, article in enumerate(results[:8], 1):
+            title = article.get("title", "No title")
+            source = article.get("source", "Unknown")
+            body = article.get("body", "")
+            
+            summary += f"**{idx}. 🔥 {title}**\n"
+            summary += f"   📰 {source}\n"
+            summary += f"   {body[:100] if body else 'No details'}...\n\n"
+        
+        return summary
+    except Exception as e:
+        return f"Error fetching headlines: {str(e)}"
+
+def get_duckduckgo_articles(sector: str) -> str:
+    """Get comprehensive articles for a sector using DuckDuckGo"""
+    try:
+        sector_queries = {
+            "Technology": "technology sector analysis stock market trends",
+            "Finance": "financial sector analysis banking trends",
+            "Healthcare": "healthcare sector pharma stocks analysis",
+            "Energy": "energy sector oil gas renewable analysis",
+            "Retail": "retail sector e-commerce consumer trends",
+            "Real Estate": "real estate sector REIT property trends",
+            "Consumer": "consumer sector spending credit trends"
+        }
+        
+        query = sector_queries.get(sector, f"{sector} sector analysis trends")
+        ddgs = DDGS()
+        results = ddgs.news(keywords=query, max_results=15)
+        
+        if not results:
+            return f"No articles found for {sector}"
+        
+        summary = f"**📊 COMPREHENSIVE ARTICLES - {sector}**\n(Found {len(results)} articles)\n\n"
+        
+        for idx, article in enumerate(results[:10], 1):
+            title = article.get("title", "No title")
+            source = article.get("source", "Unknown")
+            body = article.get("body", "")
+            
+            summary += f"**{idx}. {title}**\n"
+            summary += f"   📰 {source}\n"
+            summary += f"   {body[:150] if body else 'No description'}...\n\n"
+        
+        return summary
+    except Exception as e:
+        return f"Error fetching articles: {str(e)}"
+
+
     """Fetch top headlines for a specific industry using NewsAPI"""
     try:
         api_key = ""
@@ -275,13 +388,11 @@ def get_industry_everything_articles(sector: str) -> str:
         return f"Error fetching comprehensive articles: {str(e)}"
 
 def get_complete_industry_news(sector: str) -> str:
-    """Get complete news package for an industry: top headlines + comprehensive articles"""
+    """Get complete news package for an industry using DuckDuckGo"""
     try:
-        # Get top headlines
-        top_headlines = get_industry_top_headlines(sector)
-        
-        # Get comprehensive articles
-        comprehensive = get_industry_everything_articles(sector)
+        # Get DuckDuckGo news
+        top_headlines = get_duckduckgo_headlines(sector)
+        comprehensive = get_duckduckgo_articles(sector)
         
         # Combine both
         complete_news = f"""
@@ -701,57 +812,37 @@ def run_sector_analysis(sector: str) -> str:
 
 def answer_news_agent_question(user_question: str, industry: str) -> str:
     """
-    News Agent answers user questions about news using CrewAI.
-    Intelligently routes to appropriate news tools based on question context.
+    News Agent answers user questions about news using CrewAI + DuckDuckGo.
+    Uses DuckDuckGo to avoid NewsAPI rate limits.
     """
     try:
-        # Check if API key is available
-        api_key = ""
-        try:
-            api_key = st.secrets.get("NEWSAPI_KEY", "")
-        except Exception:
-            api_key = os.getenv("NEWSAPI_KEY", "")
-        
-        if not api_key:
-            return """**⚠️ NewsAPI Key Not Found**
-
-- API Key required: Set NEWSAPI_KEY environment variable or in Streamlit secrets
-- No live news data available without valid API key
-- Please configure NewsAPI credentials to enable news fetching
-- Contact support for API key setup assistance
-- Temporary: Please retry after configuration is complete
-- Alternative: Check .streamlit/secrets.toml file exists and has NEWSAPI_KEY"""
-        
-        # Determine which news data to fetch based on question keywords
-        question_lower = user_question.lower()
-        
-        # Fetch relevant news
+        # Fetch news from DuckDuckGo (free, no rate limits)
         headlines = ""
         articles = ""
-        bloomberg_news = ""
+        industry_news = ""
         
         try:
-            # Always get complete news for the industry
-            headlines = get_industry_top_headlines(industry)
-            articles = get_industry_everything_articles(industry)
-            bloomberg_news = search_reuters_bloomberg_news(industry, industry)
+            # Get all three types of news from DuckDuckGo
+            headlines = get_duckduckgo_headlines(industry)
+            articles = get_duckduckgo_articles(industry)
+            industry_news = get_industry_duckduckgo_news(industry)
         except Exception as e:
             return f"""**⚠️ Error Fetching News Data**
 
 - News fetch failed: {str(e)[:100]}
-- Please verify NewsAPI key is valid and active
-- Check internet connection status
-- API rate limits may have been exceeded
-- Try again in a few moments
+- Please check internet connection
+- Try a different industry
+- DuckDuckGo search may be temporarily unavailable
+- Please try again in a moment
 - Contact support if issue persists"""
         
         # Check if any news data was retrieved
-        if not headlines.strip() and not articles.strip() and not bloomberg_news.strip():
+        if not headlines.strip() and not articles.strip() and not industry_news.strip():
             return f"""**ℹ️ No News Available for {industry}**
 
-- No current headlines available from NewsAPI
-- No articles found in the last 7 days
-- Reuters & Bloomberg sources may be unavailable
+- No current headlines available from DuckDuckGo
+- No articles found in recent searches
+- Search results may be limited for this industry
 - Try a different industry for better coverage
 - Please check back later for updates
 - Market conditions may limit available stories"""
@@ -768,8 +859,8 @@ def answer_news_agent_question(user_question: str, industry: str) -> str:
 
 ---
 
-**REUTERS & BLOOMBERG NEWS:**
-{bloomberg_news}
+**INDUSTRY NEWS:**
+{industry_news}
 """
         
         # Create a task for News Manager to answer the user's specific question
@@ -779,17 +870,17 @@ def answer_news_agent_question(user_question: str, industry: str) -> str:
 User's Question: "{user_question}"
 Industry Context: {industry}
 
-**Available News Data:**
+**Available News Data from DuckDuckGo:**
 {combined_news}
 
 **YOUR RESPONSE FORMAT: EXACTLY 6 BULLET POINTS**
 
 Your Task:
-1. Analyze the available news data from multiple sources (top headlines, comprehensive articles, Reuters & Bloomberg)
-2. Directly answer the user's question using relevant information from the news
+1. Analyze the available news data from DuckDuckGo search results
+2. Directly answer the user's question using relevant news information
 3. Format your ENTIRE response as exactly 6 bullet points
 4. Each bullet point should be concise (1-2 sentences)
-5. Include source names and dates when relevant
+5. Include source names when relevant
 6. Provide actionable insights for trading/investment decisions
 
 CRITICAL REQUIREMENTS:
@@ -816,7 +907,7 @@ CRITICAL REQUIREMENTS:
             return str(result) if result else "I couldn't find relevant news to answer that question."
         except Exception as e:
             # Fallback: return the combined news if crew execution fails
-            return f"""**News Agent - Raw Data View**
+            return f"""**News Agent - Raw Data View (DuckDuckGo)**
 
 **{industry} Sector News Summary:**
 
