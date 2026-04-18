@@ -4,7 +4,7 @@ import requests
 import json
 from typing import List, Dict
 import streamlit as st
-from newsapi import NewsApiClient
+from datetime import datetime, timedelta
 
 # Initialize agents with specific roles and expertise levels
 
@@ -85,8 +85,6 @@ def get_yahoo_finance_news(ticker: str) -> str:
 def get_industry_top_headlines(sector: str) -> str:
     """Fetch top headlines for a specific industry using NewsAPI"""
     try:
-        from newsapi import NewsApiClient
-        
         api_key = ""
         try:
             api_key = st.secrets.get("NEWSAPI_KEY", "")
@@ -95,8 +93,6 @@ def get_industry_top_headlines(sector: str) -> str:
         
         if not api_key:
             return f"API Key not found for {sector}"
-        
-        newsapi = NewsApiClient(api_key=api_key)
         
         # Define industry-specific sources and categories
         industry_config = {
@@ -143,14 +139,20 @@ def get_industry_top_headlines(sector: str) -> str:
             "query": sector
         })
         
-        # Fetch top headlines
-        headlines = newsapi.get_top_headlines(
-            q=config["query"],
-            sources=config["sources"],
-            category=config["category"],
-            language='en',
-            country='us'
-        )
+        # Fetch top headlines via NewsAPI
+        url = "https://newsapi.org/v2/top-headlines"
+        params = {
+            "q": config["query"],
+            "sources": config["sources"],
+            "category": config["category"],
+            "language": "en",
+            "country": "us",
+            "apiKey": api_key,
+            "pageSize": 10
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        headlines = response.json()
         
         if headlines.get("status") == "ok" and headlines.get("articles"):
             articles = headlines.get("articles", [])
@@ -175,9 +177,6 @@ def get_industry_top_headlines(sector: str) -> str:
 def get_industry_everything_articles(sector: str) -> str:
     """Fetch comprehensive articles for a specific industry using NewsAPI everything endpoint"""
     try:
-        from newsapi import NewsApiClient
-        from datetime import datetime, timedelta
-        
         api_key = ""
         try:
             api_key = st.secrets.get("NEWSAPI_KEY", "")
@@ -186,8 +185,6 @@ def get_industry_everything_articles(sector: str) -> str:
         
         if not api_key:
             return f"API Key not found for {sector}"
-        
-        newsapi = NewsApiClient(api_key=api_key)
         
         # Define industry-specific domains and queries
         industry_config = {
@@ -238,17 +235,22 @@ def get_industry_everything_articles(sector: str) -> str:
         to_date = datetime.now()
         from_date = to_date - timedelta(days=7)
         
-        # Fetch everything with comprehensive criteria
-        articles = newsapi.get_everything(
-            q=config["query"],
-            domains=config["domains"],
-            from_param=from_date.strftime('%Y-%m-%d'),
-            to=to_date.strftime('%Y-%m-%d'),
-            language='en',
-            sort_by=config["sort"],
-            page=1,
-            page_size=15
-        )
+        # Fetch everything with comprehensive criteria via NewsAPI
+        url = "https://newsapi.org/v2/everything"
+        params = {
+            "q": config["query"],
+            "domains": config["domains"],
+            "from": from_date.strftime('%Y-%m-%d'),
+            "to": to_date.strftime('%Y-%m-%d'),
+            "language": "en",
+            "sortBy": config["sort"],
+            "page": 1,
+            "pageSize": 15,
+            "apiKey": api_key
+        }
+        
+        response = requests.get(url, params=params, timeout=10)
+        articles = response.json()
         
         if articles.get("status") == "ok" and articles.get("articles"):
             article_list = articles.get("articles", [])
