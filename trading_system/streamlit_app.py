@@ -28,6 +28,7 @@ from analysis.indicators import IndicatorCalculator
 from analysis.sentiment import SentimentAnalyzer
 from analysis.earnings import EarningsChecker
 from agents.crew import CFDTradingCrew
+from agents.agents import CFDTradingAgents
 from utils.trade_card import TradeCardBuilder, TradeCardWriter
 import yaml
 from dotenv import load_dotenv
@@ -190,7 +191,6 @@ def get_news_agent_answer(question: str, system) -> str:
     """Chat with News Agent to get headlines and sentiment analysis"""
     try:
         from crewai import Task, Crew, Process
-        from agents.agents import CFDTradingAgents
         
         # Extract ticker from question
         ticker = None
