@@ -23,13 +23,24 @@ from openpyxl.styles import Font, PatternFill, Alignment
 # Add project to path
 PROJECT_ROOT = Path(__file__).parent
 sys.path.insert(0, str(PROJECT_ROOT))
+sys.path.insert(0, str(PROJECT_ROOT.parent))  # Add parent for cloud deployment
 
-from analysis.indicators import IndicatorCalculator
-from analysis.sentiment import SentimentAnalyzer
-from analysis.earnings import EarningsChecker
-from agents.crew import CFDTradingCrew
-from agents.agents import CFDTradingAgents
-from utils.trade_card import TradeCardBuilder, TradeCardWriter
+try:
+    # Try relative imports first (local development)
+    from analysis.indicators import IndicatorCalculator
+    from analysis.sentiment import SentimentAnalyzer
+    from analysis.earnings import EarningsChecker
+    from agents.crew import CFDTradingCrew
+    from agents.agents import CFDTradingAgents
+    from utils.trade_card import TradeCardBuilder, TradeCardWriter
+except ImportError:
+    # Fall back to absolute imports (cloud deployment)
+    from trading_system.analysis.indicators import IndicatorCalculator
+    from trading_system.analysis.sentiment import SentimentAnalyzer
+    from trading_system.analysis.earnings import EarningsChecker
+    from trading_system.agents.crew import CFDTradingCrew
+    from trading_system.agents.agents import CFDTradingAgents
+    from trading_system.utils.trade_card import TradeCardBuilder, TradeCardWriter
 import yaml
 from dotenv import load_dotenv
 
