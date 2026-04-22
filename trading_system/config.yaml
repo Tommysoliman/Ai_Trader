@@ -1,0 +1,129 @@
+# CFD Trading Signal System Configuration
+
+# Watchlist - 30 tickers organized by industry (top 5 per sector + commodities)
+watchlist:
+  # Energy Sector (5)
+  - XOM       # ExxonMobil
+  - CVX       # Chevron
+  - COP       # ConocoPhillips
+  - MPC       # Marathon Petroleum
+  - FANG      # Diamondback Energy
+  
+  # Technology Sector (5)
+  - NVDA      # NVIDIA
+  - MSFT      # Microsoft
+  - META      # Meta Platforms
+  - AAPL      # Apple
+  - TSLA      # Tesla
+  
+  # Finance Sector (5)
+  - JPM       # JPMorgan Chase
+  - BAC       # Bank of America
+  - GS        # Goldman Sachs
+  - WFC       # Wells Fargo
+  - MS        # Morgan Stanley
+  
+  # Consumer Sector (5)
+  - AMZN      # Amazon
+  - MCD       # McDonald's
+  - PG        # Procter & Gamble
+  - NKE       # Nike
+  - SBUX      # Starbucks
+  
+  # Commodities/Raw Materials (5)
+  - GLD       # Gold ETF
+  - USO       # Oil ETF
+  - SLV       # Silver ETF
+  - FCX       # Freeport-McMoRan (Copper/Metals)
+  - DBA       # Agricultural Commodities ETF
+
+# Technical Indicator Thresholds
+indicators:
+  rsi_period: 14
+  rsi_bullish_threshold: 45      # RSI < 45 for bullish
+  rsi_bearish_threshold: 58      # RSI > 58 for bearish
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  atr_period: 14
+  sma_200_period: 200
+  sma_50_period: 50
+  macd_cross_lookback: 3         # Check last 3 candles for crosses
+
+# Sentiment Thresholds
+sentiment:
+  bullish_threshold: 0.2         # Score > 0.2 for bullish
+  bearish_threshold: -0.2        # Score < -0.2 for bearish
+  
+# Earnings Calendar
+earnings:
+  skip_within_days: 3            # Skip tickers with earnings within 3 days
+
+# CrewAI - News Manager Confidence Threshold
+crewai:
+  min_confidence_to_validate: 65 # Below this = HOLD, skip to portfolio
+
+# MiFID II Leverage Caps (per asset class)
+leverage:
+  stock_cfd_max: 5
+  commodity_cfd_max: 10
+  crypto_cfd_max: 2
+
+# Asset Class Classification
+asset_classes:
+  energy:
+    - XOM
+    - CVX
+    - COP
+    - MPC
+    - FANG
+  
+  technology:
+    - NVDA
+    - MSFT
+    - META
+    - AAPL
+    - TSLA
+  
+  finance:
+    - JPM
+    - BAC
+    - GS
+    - WFC
+    - MS
+  
+  consumer:
+    - AMZN
+    - MCD
+    - PG
+    - NKE
+    - SBUX
+  
+  commodities:
+    - GLD
+    - USO
+    - SLV
+    - FCX
+    - DBA
+
+# Scheduler Times (Cairo UTC+2)
+scheduler:
+  daily_run_time: "08:00"        # Daily scan at 8 AM Cairo time
+  timezone: "Africa/Cairo"
+
+# News API
+newsapi:
+  lookback_hours: 168            # Pull last 7 days of headlines (previously 24h)
+
+# Entry Zone
+entry_zone:
+  atr_multiplier: 0.5            # entry_zone_high = price + (0.5 * ATR)
+
+# Stop Loss
+stop_loss:
+  atr_multiplier: 1.5            # SL = entry - (1.5 * ATR) for longs
+
+# Take Profit Targets
+take_profit:
+  tp1_atr_multiplier: 2.0        # TP1 = entry + (2.0 * ATR)
+  tp2_atr_multiplier: 4.0        # TP2 = entry + (4.0 * ATR)
