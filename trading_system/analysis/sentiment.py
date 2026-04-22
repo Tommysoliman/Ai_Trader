@@ -16,6 +16,11 @@ class SentimentAnalyzer:
         self.newsapi_key = os.getenv('NEWSAPI_KEY')
         self.lookback_hours = config.get('newsapi', {}).get('lookback_hours', 24)
         
+        # Cache for sentiment scores and headlines (ticker -> (timestamp, score/headlines))
+        self._sentiment_cache = {}
+        self._headlines_cache = {}
+        self._cache_ttl_minutes = 30  # Cache expires after 30 minutes
+        
         # Keywords for sentiment classification
         self.positive_keywords = [
             'upgrade', 'beat', 'growth', 'partnership', 'bullish',
@@ -95,14 +100,42 @@ class SentimentAnalyzer:
         
         return max(-1.0, min(1.0, net_score))
     
+    def _is_cache_valid(self, cache_dict: Dict, ticker: str) -> bool:
+        """Check if cache entry is still valid (not expired)"""
+        if ticker not in cache_dict:
+            return False
+        
+        timestamp, _ = cache_dict[ticker]
+        age_minutes = (datetime.now() - timestamp).total_seconds() / 60
+        return age_minutes < self._cache_ttl_minutes
+    
+    def _get_from_cache(self, cache_dict: Dict, ticker: str):
+        """Retrieve value from cache if valid"""
+        if self._is_cache_valid(cache_dict, ticker):
+            _, value = cache_dict[ticker]
+            return value
+        return None
+    
+    def _set_cache(self, cache_dict: Dict, ticker: str, value):
+        """Store value in cache with timestamp"""
+        cache_dict[ticker] = (datetime.now(), value)
+    
     def calculate_sentiment_score(self, ticker: str) -> float:
         """Calculate aggregate sentiment score for a ticker (-1.0 to +1.0)
         Returns: aggregated sentiment score, or 0.0 if no articles found
+        Caches results for 30 minutes to avoid redundant API calls.
         """
+        # Check cache first
+        cached_score = self._get_from_cache(self._sentiment_cache, ticker)
+        if cached_score is not None:
+            print(f"INFO: Using cached sentiment for {ticker}: {cached_score:.2f}")
+            return cached_score
+        
         articles = self.fetch_headlines(ticker)
         
         if not articles or len(articles) == 0:
             print(f"INFO: No headlines found for {ticker} in last {self.lookback_hours}h, sentiment = 0.0")
+            self._set_cache(self._sentiment_cache, ticker, 0.0)
             return 0.0
         
         try:
@@ -120,14 +153,19 @@ class SentimentAnalyzer:
                     scores.append(score)
             
             if not scores:
+                self._set_cache(self._sentiment_cache, ticker, 0.0)
                 return 0.0
             
             # Average sentiment across all articles
             aggregate_score = sum(scores) / len(scores)
+            aggregate_score = round(aggregate_score, 2)
             
             print(f"NEWS: {ticker}: Found {len(articles)} articles, sentiment = {aggregate_score:.2f}")
             
-            return round(aggregate_score, 2)
+            # Cache the result
+            self._set_cache(self._sentiment_cache, ticker, aggregate_score)
+            
+            return aggregate_score
         
         except Exception as e:
             print(f"Error calculating sentiment for {ticker}: {e}")

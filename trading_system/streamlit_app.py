@@ -389,10 +389,10 @@ with tab1:
         st.subheader("Quick Scan")
         st.markdown("""
         Run a full daily scan on the watchlist:
-        - Download OHLCV data
+        - **Parallel download** OHLCV data (5x faster)
         - Calculate technical indicators
-        - Fetch news & sentiment
-        - Run CrewAI pipeline
+        - Fetch news & sentiment (cached)
+        - Run CrewAI pipeline (skipped for weak signals)
         - Generate trade cards
         """)
         
@@ -408,17 +408,39 @@ with tab1:
             
             all_trade_cards = []
             
+            # STEP 1: Parallel download all data
+            status_text.text("📥 Downloading market data (parallel)...")
+            all_indicators = {}
+            
+            # Download all data in parallel
+            daily_data = system['indicator_calc'].get_daily_data_parallel(watchlist, max_workers=5)
+            
+            # Calculate indicators for all tickers
+            for ticker in watchlist:
+                try:
+                    data = daily_data.get(ticker)
+                    if data is not None:
+                        indicators_data = system['indicator_calc'].calculate_all_indicators_from_data(ticker, data)
+                        if indicators_data:
+                            all_indicators[ticker] = indicators_data
+                except Exception as e:
+                    print(f"Error calculating indicators for {ticker}: {e}")
+            
+            status_text.text(f"✅ Downloaded data for {len(all_indicators)}/{len(watchlist)} tickers")
+            
+            # STEP 2: Process each ticker
+            processed_count = 0
             for idx, ticker in enumerate(watchlist):
-                progress = (idx + 1) / len(watchlist)
+                if ticker not in all_indicators:
+                    continue
+                
+                processed_count += 1
+                progress = processed_count / len(watchlist)
                 progress_bar.progress(progress)
-                status_text.text(f"Processing {ticker}... ({idx + 1}/{len(watchlist)})")
+                status_text.text(f"Analyzing {ticker}... ({processed_count}/{len(watchlist)})")
                 
                 try:
-                    # Get indicators
-                    indicators_data = system['indicator_calc'].calculate_all_indicators(ticker)
-                    
-                    if not indicators_data:
-                        continue
+                    indicators_data = all_indicators[ticker]
                     
                     # Check earnings
                     skip_earnings, earnings_date = system['earnings_checker'].check_earnings_within_threshold(ticker)
@@ -437,33 +459,57 @@ with tab1:
                         all_trade_cards.append(trade_card)
                         continue
                     
+                    # Check if signal is weak (skip CrewAI to save time)
+                    rsi = indicators_data.get('rsi', 50)
+                    macd_cross = indicators_data.get('macd_cross', '')
+                    price_change_pct = indicators_data.get('price_change_pct', 0)
+                    
+                    # Skip CrewAI if price is flat AND RSI is neutral
+                    is_weak_signal = (abs(price_change_pct) < 0.5 and 40 < rsi < 60 and macd_cross == '')
+                    
                     # Get sentiment
                     sentiment_score = system['sentiment_analyzer'].calculate_sentiment_score(ticker)
                     top_headlines = system['sentiment_analyzer'].get_top_headlines(ticker, limit=3)
                     
-                    # Run crew
-                    trade_card = system['crew'].run_signal_generation(
-                        ticker=ticker,
-                        indicators_data=indicators_data,
-                        sentiment_score=sentiment_score,
-                        top_headlines=top_headlines
-                    )
-                    
-                    if trade_card:
-                        all_trade_cards.append(trade_card)
-                    else:
+                    if is_weak_signal:
+                        # Skip CrewAI for weak signals - just hold
+                        status_text.text(f"⏭️ Skipping CrewAI for {ticker} (weak signal)")
                         trade_card = system['trade_card_builder'].build_trade_card(
                             ticker=ticker,
                             signal="HOLD",
                             current_price=indicators_data['current_price'],
                             atr=indicators_data['atr'],
                             indicators_data=indicators_data,
-                            confidence=0,
-                            catalyst="Crew processing error",
+                            confidence=0.3,
+                            catalyst="No clear setup",
                             sentiment_score=sentiment_score,
-                            skip_reason="AGENT_ERROR"
+                            skip_reason="WEAK_SIGNAL"
                         )
                         all_trade_cards.append(trade_card)
+                    else:
+                        # Run crew for strong signals
+                        trade_card = system['crew'].run_signal_generation(
+                            ticker=ticker,
+                            indicators_data=indicators_data,
+                            sentiment_score=sentiment_score,
+                            top_headlines=top_headlines
+                        )
+                        
+                        if trade_card:
+                            all_trade_cards.append(trade_card)
+                        else:
+                            trade_card = system['trade_card_builder'].build_trade_card(
+                                ticker=ticker,
+                                signal="HOLD",
+                                current_price=indicators_data['current_price'],
+                                atr=indicators_data['atr'],
+                                indicators_data=indicators_data,
+                                confidence=0,
+                                catalyst="Crew processing error",
+                                sentiment_score=sentiment_score,
+                                skip_reason="AGENT_ERROR"
+                            )
+                            all_trade_cards.append(trade_card)
                 
                 except Exception as e:
                     st.warning(f"Error processing {ticker}: {e}")

@@ -7,7 +7,9 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
 
 class IndicatorCalculator:
     """Calculate technical indicators on OHLCV data using pandas_ta"""
@@ -61,6 +63,24 @@ class IndicatorCalculator:
         except Exception as e:
             print(f"Error fetching hourly data for {ticker}: {e}")
             return None
+    
+    def get_daily_data_parallel(self, tickers: List[str], period: str = '1y', max_workers: int = 5) -> Dict[str, Optional[pd.DataFrame]]:
+        """Fetch daily OHLCV data for multiple tickers in parallel using ThreadPoolExecutor"""
+        results = {}
+        
+        with ThreadPoolExecutor(max_workers=max_workers) as executor:
+            future_to_ticker = {executor.submit(self.get_daily_data, ticker, period): ticker for ticker in tickers}
+            
+            for future in as_completed(future_to_ticker):
+                ticker = future_to_ticker[future]
+                try:
+                    data = future.result()
+                    results[ticker] = data
+                except Exception as e:
+                    print(f"Error in parallel download for {ticker}: {e}")
+                    results[ticker] = None
+        
+        return results
     
     def calculate_rsi(self, df: pd.DataFrame) -> pd.Series:
         """Calculate RSI(14) using pure Python"""
@@ -203,6 +223,13 @@ class IndicatorCalculator:
         if df is None:
             return None
         
+        return self.calculate_all_indicators_from_data(ticker, df)
+    
+    def calculate_all_indicators_from_data(self, ticker: str, df: pd.DataFrame) -> Optional[Dict]:
+        """Calculate all indicators from pre-downloaded DataFrame
+        Returns dictionary with all values ready for CrewAI
+        Useful for parallel processing to avoid re-downloading data
+        """
         try:
             # Get current price (latest close)
             current_price = float(df['Close'].iloc[-1])
@@ -229,6 +256,9 @@ class IndicatorCalculator:
             rsi_bullish = rsi_current < self.ind_config.get('rsi_bullish_threshold', 45)
             rsi_bearish = rsi_current > self.ind_config.get('rsi_bearish_threshold', 58)
             
+            # Calculate price change percentage
+            price_change_pct = ((current_price - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100) if len(df) > 1 else 0
+            
             return {
                 'ticker': ticker,
                 'current_price': round(current_price, 2),
@@ -241,6 +271,7 @@ class IndicatorCalculator:
                 'rsi_bullish_condition': bool(rsi_bullish),
                 'rsi_bearish_condition': bool(rsi_bearish),
                 'latest_volume': int(df['Volume'].iloc[-1]) if not pd.isna(df['Volume'].iloc[-1]) else 0,
+                'price_change_pct': round(price_change_pct, 2),
                 'dataframe': df  # For later reference
             }
         
