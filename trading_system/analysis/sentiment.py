@@ -15,6 +15,7 @@ class SentimentAnalyzer:
     def __init__(self, config: Dict):
         self.config = config
         self.newsapi_key = os.getenv('NEWSAPI_KEY')  # Optional fallback
+        self.newsdata_key = os.getenv('NEWSDATA_API_KEY')  # Primary NewsData API
         self.lookback_hours = config.get('newsapi', {}).get('lookback_hours', 24)
         
         # Cache for sentiment scores and headlines (ticker -> (timestamp, score/headlines))
@@ -38,16 +39,52 @@ class SentimentAnalyzer:
         ]
     
     def fetch_headlines(self, ticker: str) -> Optional[List[Dict]]:
-        """Fetch news for a ticker from yfinance (primary) or NewsAPI (fallback)"""
+        """Fetch news for a ticker from NewsData API (primary), yfinance (secondary), or NewsAPI (fallback)"""
+        
+        # Try NewsData API first
+        if self.newsdata_key:
+            try:
+                print(f"📡 Fetching news from NewsData API for {ticker}...")
+                url = "https://newsdata.io/api/1/news"
+                params = {
+                    'q': ticker,
+                    'apikey': self.newsdata_key,
+                    'language': 'en',
+                    'sortby': 'latest',
+                    'limit': 20
+                }
+                
+                response = requests.get(url, params=params, timeout=10)
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                if data.get('status') == 'success' and 'results' in data:
+                    articles = data['results']
+                    if articles and len(articles) > 0:
+                        print(f"✅ Got {len(articles)} headlines from NewsData API for {ticker}")
+                        # Convert NewsData format to standard format
+                        converted_articles = []
+                        for article in articles:
+                            converted = {
+                                'title': article.get('title', 'No Title'),
+                                'description': article.get('description', ''),
+                                'url': article.get('link', ''),
+                                'publishedAt': article.get('pubDate', '')
+                            }
+                            converted_articles.append(converted)
+                        return converted_articles
+            except Exception as e:
+                print(f"⚠️  NewsData API fetch failed for {ticker}: {e}")
+        
+        # Fallback to yfinance
         try:
-            # Try yfinance first (no API key needed)
-            print(f"📡 Fetching news from yfinance for {ticker}...")
+            print(f"🔄 Falling back to yfinance for {ticker}...")
             ticker_obj = yf.Ticker(ticker)
             news_items = ticker_obj.get_news(count=20)
             
             if news_items and len(news_items) > 0:
                 print(f"✅ Got {len(news_items)} headlines from yfinance for {ticker}")
-                # Convert yfinance format to match NewsAPI format
                 articles = []
                 for item in news_items:
                     article = {
@@ -61,18 +98,16 @@ class SentimentAnalyzer:
         except Exception as e:
             print(f"⚠️  yfinance news fetch failed for {ticker}: {e}")
         
-        # Fallback to NewsAPI if yfinance fails and key is available
+        # Fallback to NewsAPI if key is available
         if self.newsapi_key:
             try:
                 print(f"🔄 Falling back to NewsAPI for {ticker}...")
-                # Calculate date range (last 24 hours)
                 to_date = datetime.utcnow()
                 from_date = to_date - timedelta(hours=self.lookback_hours)
                 
                 from_date_str = from_date.strftime('%Y-%m-%d')
                 to_date_str = to_date.strftime('%Y-%m-%d')
                 
-                # Query NewsAPI
                 url = "https://newsapi.org/v2/everything"
                 params = {
                     'q': ticker,
