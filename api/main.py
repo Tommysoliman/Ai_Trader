@@ -11,19 +11,38 @@ from flask_cors import CORS
 import json
 from datetime import datetime
 
-# Add trading_system to path
-TRADING_SYSTEM = Path(__file__).parent.parent / "trading_system"
+# Set up paths - use absolute paths from __file__
+API_DIR = Path(__file__).parent
+PROJECT_ROOT = API_DIR.parent
+TRADING_SYSTEM = PROJECT_ROOT / "trading_system"
+
+# Add trading_system to path for imports
 sys.path.insert(0, str(TRADING_SYSTEM))
+sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import trading system modules
 from analysis.sentiment import SentimentAnalyzer
 from analysis.indicators import IndicatorCalculator
 from agents.crew import CFDTradingCrew
 from utils.duckduckgo_news import search_for_question
-from config import INDUSTRIES, CONFIG
 
-# Initialize Flask app
-app = Flask(__name__, template_folder='../templates', static_folder='../static')
+# Define INDUSTRIES mapping (same as streamlit_app.py)
+INDUSTRIES = {
+    "⚡ Energy": ["XOM", "CVX", "COP", "MPC", "FANG"],
+    "💻 Technology": ["NVDA", "MSFT", "META", "AAPL", "TSLA", "ORCL"],
+    "🏦 Finance": ["JPM", "BAC", "GS", "WFC", "MS", "MA", "V"],
+    "🛍️ Consumer": ["AMZN", "MCD", "PG", "NKE", "SBUX"],
+    "📦 Commodities": ["GLD", "USO", "SLV", "FCX", "DBA"]
+}
+
+# Default config (can be empty for now)
+CONFIG = {}
+
+# Initialize Flask app with absolute paths
+TEMPLATES_DIR = PROJECT_ROOT / "templates"
+STATIC_DIR = PROJECT_ROOT / "static"
+
+app = Flask(__name__, template_folder=str(TEMPLATES_DIR), static_folder=str(STATIC_DIR))
 CORS(app)
 app.config['JSON_SORT_KEYS'] = False
 
