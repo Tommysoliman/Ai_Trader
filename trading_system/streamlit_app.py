@@ -91,17 +91,19 @@ def init_system():
     }
 
 def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines):
-    """Calculate scores for the 3 pillars of analysis"""
+    """Calculate scores for the 3 pillars of analysis - used in ALL BUY/SELL/HOLD decisions"""
     
-    # 1️⃣ TECHNICAL ANALYSIS PILLAR (RSI, Volume, MACD)
+    # 1️⃣ TECHNICAL ANALYSIS PILLAR (RSI, MACD, Volume, ATR)
     rsi = indicators_data.get('rsi', 50)
     macd = indicators_data.get('macd_cross', '')
     volume = indicators_data.get('volume', 0)
+    avg_volume = indicators_data.get('avg_volume', 1)
     atr = indicators_data.get('atr', 0)
     
     technical_score = 0
     technical_signals = []
     
+    # RSI Analysis
     if rsi < 35:
         technical_score += 0.4
         technical_signals.append("✅ RSI Oversold (Buy signal)")
@@ -112,6 +114,7 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines)
         technical_score += 0.1
         technical_signals.append("➡️ RSI Neutral")
     
+    # MACD Analysis
     if macd == 'bullish':
         technical_score += 0.3
         technical_signals.append("✅ MACD Bullish Cross")
@@ -121,9 +124,21 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines)
     else:
         technical_signals.append("➡️ MACD Neutral")
     
+    # Volume Analysis
+    if volume and avg_volume:
+        volume_ratio = volume / avg_volume if avg_volume > 0 else 1
+        if volume_ratio > 1.2:  # Above average volume
+            technical_score += 0.2
+            technical_signals.append(f"✅ Volume Surge ({volume_ratio:.1f}x avg)")
+        elif volume_ratio < 0.8:  # Below average volume
+            technical_score -= 0.1
+            technical_signals.append(f"⚠️ Low Volume ({volume_ratio:.1f}x avg)")
+        else:
+            technical_signals.append(f"➡️ Normal Volume ({volume_ratio:.1f}x avg)")
+    
     technical_score = max(-1, min(1, technical_score))  # Clamp between -1 and 1
     
-    # 2️⃣ QUALITATIVE ANALYSIS PILLAR (News Sentiment)
+    # 2️⃣ QUALITATIVE ANALYSIS PILLAR (News Sentiment - PRIMARY FACTOR)
     qualitative_score = sentiment_score  # Already normalized between -1 and 1
     
     qualitative_signals = []
@@ -134,28 +149,57 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines)
     else:
         qualitative_signals.append("➡️ Neutral News Sentiment")
     
-    # 3️⃣ QUANTITATIVE ANALYSIS PILLAR (Market fundamentals check)
-    # This is a simplified check - in production would use P/E, earnings growth, etc.
+    qualitative_signals.append(f"📰 Sentiment Score: {sentiment_score:.2f}")
+    
+    # 3️⃣ QUANTITATIVE ANALYSIS PILLAR (Financial Performance & Price Trends)
     quantitative_score = 0
     quantitative_signals = []
     
-    if indicators_data.get('current_price', 0) > indicators_data.get('sma_200', 0):
-        quantitative_score += 0.3
-        quantitative_signals.append("✅ Price above 200-day MA")
-    else:
-        quantitative_score -= 0.3
-        quantitative_signals.append("⚠️ Price below 200-day MA")
+    # Price vs Moving Averages (Trend Health)
+    current_price = indicators_data.get('current_price', 0)
+    sma_50 = indicators_data.get('sma_50', 0)
+    sma_200 = indicators_data.get('sma_200', 0)
     
-    if indicators_data.get('sma_50', 0) > indicators_data.get('sma_200', 0):
-        quantitative_score += 0.2
-        quantitative_signals.append("✅ 50-day MA above 200-day MA")
-    else:
-        quantitative_score -= 0.2
-        quantitative_signals.append("⚠️ 50-day MA below 200-day MA")
+    if current_price and sma_200:
+        if current_price > sma_200:
+            quantitative_score += 0.25
+            quantitative_signals.append(f"✅ Price (${current_price:.2f}) > SMA200 (${sma_200:.2f})")
+        else:
+            quantitative_score -= 0.25
+            quantitative_signals.append(f"⚠️ Price (${current_price:.2f}) < SMA200 (${sma_200:.2f})")
+    
+    if sma_50 and sma_200:
+        if sma_50 > sma_200:
+            quantitative_score += 0.25
+            quantitative_signals.append("✅ SMA50 > SMA200 (Bullish Trend)")
+        else:
+            quantitative_score -= 0.25
+            quantitative_signals.append("⚠️ SMA50 < SMA200 (Bearish Trend)")
+    
+    # Earnings Health Check (if available)
+    latest_eps = indicators_data.get('latest_eps', None)
+    eps_growth = indicators_data.get('eps_growth', None)
+    
+    if latest_eps and latest_eps > 0:
+        quantitative_score += 0.15
+        quantitative_signals.append(f"✅ Positive EPS: ${latest_eps:.2f}")
+    elif latest_eps and latest_eps < 0:
+        quantitative_score -= 0.15
+        quantitative_signals.append(f"⚠️ Negative EPS: ${latest_eps:.2f}")
+    
+    if eps_growth:
+        if eps_growth > 0.1:  # > 10% growth
+            quantitative_score += 0.1
+            quantitative_signals.append(f"✅ Strong EPS Growth: {eps_growth*100:.1f}%")
+        elif eps_growth < -0.1:  # < -10% decline
+            quantitative_score -= 0.1
+            quantitative_signals.append(f"⚠️ EPS Decline: {eps_growth*100:.1f}%")
     
     quantitative_score = max(-1, min(1, quantitative_score))
     
-    # FINAL DECISION
+    # ═══════════════════════════════════════════════════════════
+    # FINAL DECISION: Average all 3 pillars equally
+    # ═══════════════════════════════════════════════════════════
     combined_score = (technical_score + qualitative_score + quantitative_score) / 3
     
     if combined_score > 0.4:
