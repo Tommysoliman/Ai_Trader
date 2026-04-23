@@ -39,12 +39,43 @@ class SentimentAnalyzer:
         ]
     
     def fetch_headlines(self, ticker: str) -> Optional[List[Dict]]:
-        """Fetch news for a ticker from NewsData API (primary), yfinance (secondary), or NewsAPI (fallback)"""
+        """Fetch news for a ticker from yfinance (primary), NewsData API (secondary), or NewsAPI (fallback)"""
         
-        # Try NewsData API first
+        # Try yfinance first (most reliable for stock news)
+        try:
+            print(f"📡 Fetching news from yfinance for {ticker}...")
+            ticker_obj = yf.Ticker(ticker)
+            news_items = ticker_obj.get_news(count=20)
+            
+            if news_items and len(news_items) > 0:
+                print(f"✅ Got {len(news_items)} headlines from yfinance for {ticker}")
+                articles = []
+                for item in news_items:
+                    # yfinance returns nested content structure
+                    content = item.get('content', {})
+                    title = content.get('title', '')
+                    description = content.get('description', '') or content.get('summary', '')
+                    
+                    # Clean HTML tags from description if present
+                    if '<' in description:
+                        import re as regex
+                        description = regex.sub(r'<[^>]+>', '', description)
+                    
+                    article = {
+                        'title': title if title else (description[:100] if description else 'News Article'),
+                        'description': description,
+                        'url': content.get('clickThroughUrl', {}).get('url', '') if isinstance(content.get('clickThroughUrl'), dict) else '',
+                        'publishedAt': content.get('pubDate', '')
+                    }
+                    articles.append(article)
+                return articles
+        except Exception as e:
+            print(f"⚠️  yfinance news fetch failed for {ticker}: {e}")
+        
+        # Fallback to NewsData API if yfinance fails and key is available
         if self.newsdata_key:
             try:
-                print(f"📡 Fetching news from NewsData API for {ticker}...")
+                print(f"🔄 Falling back to NewsData API for {ticker}...")
                 url = "https://newsdata.io/api/1/news"
                 params = {
                     'q': ticker,
@@ -63,40 +94,23 @@ class SentimentAnalyzer:
                     articles = data['results']
                     if articles and len(articles) > 0:
                         print(f"✅ Got {len(articles)} headlines from NewsData API for {ticker}")
+                        
                         # Convert NewsData format to standard format
                         converted_articles = []
                         for article in articles:
+                            title = article.get('title') or article.get('description', '')[:100]
                             converted = {
-                                'title': article.get('title', 'No Title'),
+                                'title': title if title else 'News Article',
                                 'description': article.get('description', ''),
                                 'url': article.get('link', ''),
                                 'publishedAt': article.get('pubDate', '')
                             }
                             converted_articles.append(converted)
                         return converted_articles
+                else:
+                    print(f"⚠️  NewsData API error: {data.get('message', 'Unknown error')}")
             except Exception as e:
                 print(f"⚠️  NewsData API fetch failed for {ticker}: {e}")
-        
-        # Fallback to yfinance
-        try:
-            print(f"🔄 Falling back to yfinance for {ticker}...")
-            ticker_obj = yf.Ticker(ticker)
-            news_items = ticker_obj.get_news(count=20)
-            
-            if news_items and len(news_items) > 0:
-                print(f"✅ Got {len(news_items)} headlines from yfinance for {ticker}")
-                articles = []
-                for item in news_items:
-                    article = {
-                        'title': item.get('title', 'No Title'),
-                        'description': item.get('summary', ''),
-                        'url': item.get('link', ''),
-                        'publishedAt': item.get('providerPublishTime', '')
-                    }
-                    articles.append(article)
-                return articles
-        except Exception as e:
-            print(f"⚠️  yfinance news fetch failed for {ticker}: {e}")
         
         # Fallback to NewsAPI if key is available
         if self.newsapi_key:
