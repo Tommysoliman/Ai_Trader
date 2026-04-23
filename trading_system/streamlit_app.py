@@ -267,163 +267,22 @@ st.markdown("""
 """)
 st.divider()
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 Daily Scan", "📊 Results", "🔍 Analyze Stock", "💬 News Q&A", "📚 About"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["� Analyze Stock", "🚀 Daily Scan", "📊 Results", "💬 News Q&A", "📚 About"])
 
 with tab1:
-    col1, col2, col3 = st.columns([2, 1, 1])
-    with col1:
-        st.subheader("⚡ Quick Scan")
-    with col2:
-        st.metric("Mode", "Hybrid", "✨")
-    with col3:
-        st.metric("Speed", "2-5 min", "🏃")
-    
-    st.markdown("**What happens:** Parallel download → Indicators → Sentiment → AI confirmation (BUY/SELL only)")
-    
-    if st.button("▶️ START SCAN", use_container_width=True):
-        progress_bar = st.progress(0)
-        status_text = st.empty()
-        
-        system = init_system()
-        config = system['config']
-        watchlist = config.get('watchlist', [])
-        all_trade_cards = []
-        
-        status_text.text("📥 Downloading data...")
-        daily_data = system['indicator_calc'].get_daily_data_parallel(watchlist, max_workers=5)
-        
-        all_indicators = {}
-        for ticker in watchlist:
-            try:
-                data = daily_data.get(ticker)
-                if data is not None:
-                    ind = system['indicator_calc'].calculate_all_indicators_from_data(ticker, data)
-                    if ind:
-                        all_indicators[ticker] = ind
-            except Exception as e:
-                print(f"Error {ticker}: {e}")
-        
-        for idx, ticker in enumerate(watchlist):
-            if ticker not in all_indicators:
-                continue
-            
-            progress_bar.progress((idx + 1) / len(watchlist))
-            ind = all_indicators[ticker]
-            
-            try:
-                skip, date = system['earnings_checker'].check_earnings_within_threshold(ticker)
-                if skip:
-                    card = system['trade_card_builder'].build_trade_card(
-                        ticker=ticker, signal="HOLD", current_price=ind['current_price'],
-                        atr=ind['atr'], indicators_data=ind, confidence=0,
-                        catalyst=f"Earnings {date}", sentiment_score=0, skip_reason="EARNINGS"
-                    )
-                    all_trade_cards.append(card)
-                    continue
-                
-                rsi = ind.get('rsi', 50)
-                macd = ind.get('macd_cross', '')
-                
-                if rsi < 35 and macd == 'bullish':
-                    signal, conf = "BUY", 0.7
-                elif rsi > 65 and macd == 'bearish':
-                    signal, conf = "SELL", 0.7
-                else:
-                    signal, conf = "HOLD", 0.5
-                
-                sentiment = system['sentiment_analyzer'].calculate_sentiment_score(ticker)
-                headlines = system['sentiment_analyzer'].get_top_headlines(ticker, limit=3)
-                
-                if signal in ["BUY", "SELL"]:
-                    status_text.text(f"🧠 Confirming {ticker} with AI...")
-                    card = system['crew'].run_signal_generation(
-                        ticker=ticker, indicators_data=ind, sentiment_score=sentiment, top_headlines=headlines
-                    )
-                    if not card:
-                        card = system['trade_card_builder'].build_trade_card(
-                            ticker=ticker, signal=signal, current_price=ind['current_price'],
-                            atr=ind['atr'], indicators_data=ind, confidence=conf,
-                            catalyst=f"RSI={rsi} MACD={macd}", sentiment_score=sentiment, skip_reason="CREW_ERROR"
-                        )
-                else:
-                    card = system['trade_card_builder'].build_trade_card(
-                        ticker=ticker, signal="HOLD", current_price=ind['current_price'],
-                        atr=ind['atr'], indicators_data=ind, confidence=conf,
-                        catalyst=f"RSI={rsi} MACD={macd}", sentiment_score=sentiment, skip_reason="NO_SETUP"
-                    )
-                
-                all_trade_cards.append(card)
-            except Exception as e:
-                st.warning(f"⚠️ Error {ticker}: {e}")
-        
-        status_text.text("✅ Scan complete!")
-        if all_trade_cards:
-            system['trade_card_writer'].write_trade_cards(all_trade_cards)
-            st.session_state.last_results = all_trade_cards
-            st.balloons()
-            st.success(f"✨ Analyzed {len(all_trade_cards)} tickers successfully!")
-    
-    st.divider()
-    st.info("📊 **Check Results tab** to see all signals with detailed metrics and export options!")
-
-with tab2:
-    st.subheader("📊 Latest Results")
-    if st.session_state.last_results:
-        # Create DataFrame with signal colors
-        data = []
-        for c in st.session_state.last_results:
-            signal = c.get('signal', '')
-            if signal == 'BUY':
-                signal_html = f"<span style='color: #00ff41; font-weight: bold;'>🟢 BUY</span>"
-            elif signal == 'SELL':
-                signal_html = f"<span style='color: #ff0051; font-weight: bold;'>🔴 SELL</span>"
-            else:
-                signal_html = f"<span style='color: #ffa500; font-weight: bold;'>🟡 HOLD</span>"
-            
-            data.append({
-                'Ticker': c.get('ticker', ''),
-                'Signal': signal_html,
-                'Confidence': f"{c.get('confidence', 0):.0%}",
-                'Entry': f"${c.get('entry_price', 0):.2f}",
-                'Stop': f"${c.get('stop_loss', 0):.2f}",
-                'TP1': f"${c.get('take_profit_1', 0):.2f}",
-                'RSI': f"{c.get('rsi', 0):.0f}",
-                'Sentiment': f"{c.get('sentiment_score', 0):.2f}"
-            })
-        
-        df = pd.DataFrame(data)
-        st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
-        
-        col1, col2, col3 = st.columns([2, 1, 1])
-        with col1:
-            if st.button("📥 Export to Excel", use_container_width=True):
-                st.download_button("⬇️ Download Excel", export_to_excel(st.session_state.last_results),
-                                 f"signals_{datetime.now():%Y%m%d_%H%M%S}.xlsx", use_container_width=True)
-        
-        buys = len([c for c in st.session_state.last_results if c.get('signal') == 'BUY'])
-        sells = len([c for c in st.session_state.last_results if c.get('signal') == 'SELL'])
-        
-        with col2:
-            st.metric("🟢 BUY", buys)
-        with col3:
-            st.metric("🔴 SELL", sells)
-    else:
-        st.info("📊 No results yet. Run a scan to generate trading signals!")
-
-with tab3:
     st.subheader("🔍 Analyze Individual Stock")
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        industry = st.selectbox("📍 Select Industry", list(INDUSTRIES.keys()))
+        industry = st.selectbox("📍 Select Industry", list(INDUSTRIES.keys()), key="analyze_industry")
     
     with col2:
         stocks = INDUSTRIES[industry]
-        selected_stock = st.selectbox("📈 Select Stock", stocks)
+        selected_stock = st.selectbox("📈 Select Stock", stocks, key="analyze_stock")
     
     with col3:
-        analyze_btn = st.button("🔬 Analyze Now", use_container_width=True)
+        analyze_btn = st.button("🔬 Analyze Now", use_container_width=True, key="analyze_btn")
     
     if analyze_btn:
         system = init_system()
@@ -543,6 +402,147 @@ with tab3:
                 st.error(f"Could not fetch data for {selected_stock}")
         except Exception as e:
             st.error(f"❌ Error analyzing {selected_stock}: {e}")
+
+with tab2:
+    col1, col2, col3 = st.columns([2, 1, 1])
+    with col1:
+        st.subheader("⚡ Quick Scan")
+    with col2:
+        st.metric("Mode", "Hybrid", "✨")
+    with col3:
+        st.metric("Speed", "2-5 min", "🏃")
+    
+    st.markdown("**What happens:** Parallel download → Indicators → Sentiment → AI confirmation (BUY/SELL only)")
+    
+    if st.button("▶️ START SCAN", use_container_width=True):
+        progress_bar = st.progress(0)
+        status_text = st.empty()
+        
+        system = init_system()
+        config = system['config']
+        watchlist = config.get('watchlist', [])
+        all_trade_cards = []
+        
+        status_text.text("📥 Downloading data...")
+        daily_data = system['indicator_calc'].get_daily_data_parallel(watchlist, max_workers=5)
+        
+        all_indicators = {}
+        for ticker in watchlist:
+            try:
+                data = daily_data.get(ticker)
+                if data is not None:
+                    ind = system['indicator_calc'].calculate_all_indicators_from_data(ticker, data)
+                    if ind:
+                        all_indicators[ticker] = ind
+            except Exception as e:
+                print(f"Error {ticker}: {e}")
+        
+        for idx, ticker in enumerate(watchlist):
+            if ticker not in all_indicators:
+                continue
+            
+            progress_bar.progress((idx + 1) / len(watchlist))
+            ind = all_indicators[ticker]
+            
+            try:
+                skip, date = system['earnings_checker'].check_earnings_within_threshold(ticker)
+                if skip:
+                    card = system['trade_card_builder'].build_trade_card(
+                        ticker=ticker, signal="HOLD", current_price=ind['current_price'],
+                        atr=ind['atr'], indicators_data=ind, confidence=0,
+                        catalyst=f"Earnings {date}", sentiment_score=0, skip_reason="EARNINGS"
+                    )
+                    all_trade_cards.append(card)
+                    continue
+                
+                rsi = ind.get('rsi', 50)
+                macd = ind.get('macd_cross', '')
+                
+                if rsi < 35 and macd == 'bullish':
+                    signal, conf = "BUY", 0.7
+                elif rsi > 65 and macd == 'bearish':
+                    signal, conf = "SELL", 0.7
+                else:
+                    signal, conf = "HOLD", 0.5
+                
+                sentiment = system['sentiment_analyzer'].calculate_sentiment_score(ticker)
+                headlines = system['sentiment_analyzer'].get_top_headlines(ticker, limit=3)
+                
+                if signal in ["BUY", "SELL"]:
+                    status_text.text(f"🧠 Confirming {ticker} with AI...")
+                    card = system['crew'].run_signal_generation(
+                        ticker=ticker, indicators_data=ind, sentiment_score=sentiment, top_headlines=headlines
+                    )
+                    if not card:
+                        card = system['trade_card_builder'].build_trade_card(
+                            ticker=ticker, signal=signal, current_price=ind['current_price'],
+                            atr=ind['atr'], indicators_data=ind, confidence=conf,
+                            catalyst=f"RSI={rsi} MACD={macd}", sentiment_score=sentiment, skip_reason="CREW_ERROR"
+                        )
+                else:
+                    card = system['trade_card_builder'].build_trade_card(
+                        ticker=ticker, signal="HOLD", current_price=ind['current_price'],
+                        atr=ind['atr'], indicators_data=ind, confidence=conf,
+                        catalyst=f"RSI={rsi} MACD={macd}", sentiment_score=sentiment, skip_reason="NO_SETUP"
+                    )
+                
+                all_trade_cards.append(card)
+            except Exception as e:
+                st.warning(f"⚠️ Error {ticker}: {e}")
+        
+        status_text.text("✅ Scan complete!")
+        if all_trade_cards:
+            system['trade_card_writer'].write_trade_cards(all_trade_cards)
+            st.session_state.last_results = all_trade_cards
+            st.balloons()
+            st.success(f"✨ Analyzed {len(all_trade_cards)} tickers successfully!")
+    
+    st.divider()
+    st.info("📊 **Check Results tab** to see all signals with detailed metrics and export options!")
+
+with tab3:
+    st.subheader("📊 Latest Results")
+    if st.session_state.last_results:
+        # Create DataFrame with signal colors
+        data = []
+        for c in st.session_state.last_results:
+            signal = c.get('signal', '')
+            if signal == 'BUY':
+                signal_html = f"<span style='color: #00ff41; font-weight: bold;'>🟢 BUY</span>"
+            elif signal == 'SELL':
+                signal_html = f"<span style='color: #ff0051; font-weight: bold;'>🔴 SELL</span>"
+            else:
+                signal_html = f"<span style='color: #ffa500; font-weight: bold;'>🟡 HOLD</span>"
+            
+            data.append({
+                'Ticker': c.get('ticker', ''),
+                'Signal': signal_html,
+                'Confidence': f"{c.get('confidence', 0):.0%}",
+                'Entry': f"${c.get('entry_price', 0):.2f}",
+                'Stop': f"${c.get('stop_loss', 0):.2f}",
+                'TP1': f"${c.get('take_profit_1', 0):.2f}",
+                'RSI': f"{c.get('rsi', 0):.0f}",
+                'Sentiment': f"{c.get('sentiment_score', 0):.2f}"
+            })
+        
+        df = pd.DataFrame(data)
+        st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
+        
+        col1, col2, col3 = st.columns([2, 1, 1])
+        with col1:
+            if st.button("📥 Export to Excel", use_container_width=True):
+                st.download_button("⬇️ Download Excel", export_to_excel(st.session_state.last_results),
+                                 f"signals_{datetime.now():%Y%m%d_%H%M%S}.xlsx", use_container_width=True)
+        
+        buys = len([c for c in st.session_state.last_results if c.get('signal') == 'BUY'])
+        sells = len([c for c in st.session_state.last_results if c.get('signal') == 'SELL'])
+        
+        with col2:
+            st.metric("🟢 BUY", buys)
+        with col3:
+            st.metric("🔴 SELL", sells)
+    else:
+        st.info("📊 No results yet. Run a scan to generate trading signals!")
 
 with tab4:
     st.subheader("📰 News Q&A with AI Agent")
