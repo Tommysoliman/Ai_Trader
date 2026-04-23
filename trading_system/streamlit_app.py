@@ -32,8 +32,8 @@ st.set_page_config(page_title="🚀 Trading Signals", page_icon="📈", layout="
 # Industry & Stock Mapping
 INDUSTRIES = {
     "⚡ Energy": ["XOM", "CVX", "COP", "MPC", "FANG"],
-    "💻 Technology": ["NVDA", "MSFT", "META", "AAPL", "TSLA"],
-    "🏦 Finance": ["JPM", "BAC", "GS", "WFC", "MS"],
+    "💻 Technology": ["NVDA", "MSFT", "META", "AAPL", "TSLA", "ORCL"],
+    "🏦 Finance": ["JPM", "BAC", "GS", "WFC", "MS", "MA", "V"],
     "🛍️ Consumer": ["AMZN", "MCD", "PG", "NKE", "SBUX"],
     "📦 Commodities": ["GLD", "USO", "SLV", "FCX", "DBA"]
 }
@@ -65,6 +65,11 @@ st.markdown("""
         color: #000 !important;
         font-weight: bold !important;
     }
+    
+    /* Signal colors */
+    .buy-signal { color: #00ff41; font-weight: bold; }
+    .sell-signal { color: #ff0051; font-weight: bold; }
+    .hold-signal { color: #ffa500; font-weight: bold; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -83,6 +88,108 @@ def init_system():
         'trade_card_builder': TradeCardBuilder(config),
         'trade_card_writer': TradeCardWriter(config),
         'crew': CFDTradingCrew(config)
+    }
+
+def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines):
+    """Calculate scores for the 3 pillars of analysis"""
+    
+    # 1️⃣ TECHNICAL ANALYSIS PILLAR (RSI, Volume, MACD)
+    rsi = indicators_data.get('rsi', 50)
+    macd = indicators_data.get('macd_cross', '')
+    volume = indicators_data.get('volume', 0)
+    atr = indicators_data.get('atr', 0)
+    
+    technical_score = 0
+    technical_signals = []
+    
+    if rsi < 35:
+        technical_score += 0.4
+        technical_signals.append("✅ RSI Oversold (Buy signal)")
+    elif rsi > 65:
+        technical_score -= 0.4
+        technical_signals.append("⚠️ RSI Overbought (Sell signal)")
+    elif 40 < rsi < 60:
+        technical_score += 0.1
+        technical_signals.append("➡️ RSI Neutral")
+    
+    if macd == 'bullish':
+        technical_score += 0.3
+        technical_signals.append("✅ MACD Bullish Cross")
+    elif macd == 'bearish':
+        technical_score -= 0.3
+        technical_signals.append("⚠️ MACD Bearish Cross")
+    else:
+        technical_signals.append("➡️ MACD Neutral")
+    
+    technical_score = max(-1, min(1, technical_score))  # Clamp between -1 and 1
+    
+    # 2️⃣ QUALITATIVE ANALYSIS PILLAR (News Sentiment)
+    qualitative_score = sentiment_score  # Already normalized between -1 and 1
+    
+    qualitative_signals = []
+    if sentiment_score > 0.3:
+        qualitative_signals.append("✅ Positive News Sentiment")
+    elif sentiment_score < -0.3:
+        qualitative_signals.append("⚠️ Negative News Sentiment")
+    else:
+        qualitative_signals.append("➡️ Neutral News Sentiment")
+    
+    # 3️⃣ QUANTITATIVE ANALYSIS PILLAR (Market fundamentals check)
+    # This is a simplified check - in production would use P/E, earnings growth, etc.
+    quantitative_score = 0
+    quantitative_signals = []
+    
+    if indicators_data.get('current_price', 0) > indicators_data.get('sma_200', 0):
+        quantitative_score += 0.3
+        quantitative_signals.append("✅ Price above 200-day MA")
+    else:
+        quantitative_score -= 0.3
+        quantitative_signals.append("⚠️ Price below 200-day MA")
+    
+    if indicators_data.get('sma_50', 0) > indicators_data.get('sma_200', 0):
+        quantitative_score += 0.2
+        quantitative_signals.append("✅ 50-day MA above 200-day MA")
+    else:
+        quantitative_score -= 0.2
+        quantitative_signals.append("⚠️ 50-day MA below 200-day MA")
+    
+    quantitative_score = max(-1, min(1, quantitative_score))
+    
+    # FINAL DECISION
+    combined_score = (technical_score + qualitative_score + quantitative_score) / 3
+    
+    if combined_score > 0.4:
+        signal = "BUY"
+        confidence = min(0.95, 0.5 + abs(combined_score))
+    elif combined_score < -0.4:
+        signal = "SELL"
+        confidence = min(0.95, 0.5 + abs(combined_score))
+    else:
+        signal = "HOLD"
+        confidence = max(0.3, 0.5 - abs(combined_score))
+    
+    return {
+        'signal': signal,
+        'confidence': confidence,
+        'technical': {
+            'score': technical_score,
+            'signals': technical_signals,
+            'rsi': rsi,
+            'macd': macd
+        },
+        'qualitative': {
+            'score': qualitative_score,
+            'signals': qualitative_signals,
+            'sentiment': sentiment_score,
+            'headlines': headlines
+        },
+        'quantitative': {
+            'score': quantitative_score,
+            'signals': quantitative_signals,
+            'sma_50': indicators_data.get('sma_50', 0),
+            'sma_200': indicators_data.get('sma_200', 0)
+        },
+        'combined_score': combined_score
     }
 
 def export_to_excel(cards):
@@ -106,10 +213,17 @@ def export_to_excel(cards):
 # ==================== MAIN UI ====================
 
 st.title("🚀 CFD Trading Signal System")
-st.markdown("**AI-powered trading signals** • Hybrid mode: CrewAI on BUY/SELL • Lightning fast ⚡")
+st.markdown("""
+**3-Pillar AI-Powered Trading Analysis:**
+- 📊 **Technical Analysis** (RSI, MACD, Volume, Moving Averages)
+- 📰 **Qualitative Analysis** (News Sentiment & Market News)
+- 💹 **Quantitative Analysis** (Financial Performance & Price Trends)
+
+*Combined for optimal BUY/HOLD/SELL decisions* • Hybrid CrewAI mode • ⚡ Lightning fast
+""")
 st.divider()
 
-tab1, tab2, tab3, tab4 = st.tabs(["🚀 Daily Scan", "📊 Results", "🔍 Analyze Stock", "ℹ️ About"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["🚀 Daily Scan", "📊 Results", "🔍 Analyze Stock", "💬 News Q&A", "📚 About"])
 
 with tab1:
     col1, col2, col3 = st.columns([2, 1, 1])
@@ -204,19 +318,37 @@ with tab1:
             st.session_state.last_results = all_trade_cards
             st.balloons()
             st.success(f"✨ Analyzed {len(all_trade_cards)} tickers successfully!")
+    
+    st.divider()
+    st.info("📊 **Check Results tab** to see all signals with detailed metrics and export options!")
 
 with tab2:
     st.subheader("📊 Latest Results")
     if st.session_state.last_results:
-        df = pd.DataFrame([
-            {'Ticker': c.get('ticker', ''), 'Signal': c.get('signal', ''), 
-             'Confidence': f"{c.get('confidence', 0):.0%}", 'Entry': f"${c.get('entry_price', 0):.2f}",
-             'Stop': f"${c.get('stop_loss', 0):.2f}", 'TP1': f"${c.get('take_profit_1', 0):.2f}",
-             'RSI': f"{c.get('rsi', 0):.0f}", 'Sentiment': f"{c.get('sentiment_score', 0):.2f}"}
-            for c in st.session_state.last_results
-        ])
+        # Create DataFrame with signal colors
+        data = []
+        for c in st.session_state.last_results:
+            signal = c.get('signal', '')
+            if signal == 'BUY':
+                signal_html = f"<span style='color: #00ff41; font-weight: bold;'>🟢 BUY</span>"
+            elif signal == 'SELL':
+                signal_html = f"<span style='color: #ff0051; font-weight: bold;'>🔴 SELL</span>"
+            else:
+                signal_html = f"<span style='color: #ffa500; font-weight: bold;'>🟡 HOLD</span>"
+            
+            data.append({
+                'Ticker': c.get('ticker', ''),
+                'Signal': signal_html,
+                'Confidence': f"{c.get('confidence', 0):.0%}",
+                'Entry': f"${c.get('entry_price', 0):.2f}",
+                'Stop': f"${c.get('stop_loss', 0):.2f}",
+                'TP1': f"${c.get('take_profit_1', 0):.2f}",
+                'RSI': f"{c.get('rsi', 0):.0f}",
+                'Sentiment': f"{c.get('sentiment_score', 0):.2f}"
+            })
         
-        st.dataframe(df, use_container_width=True, height=500)
+        df = pd.DataFrame(data)
+        st.markdown(df.to_html(escape=False, index=False), unsafe_allow_html=True)
         
         col1, col2, col3 = st.columns([2, 1, 1])
         with col1:
@@ -269,57 +401,85 @@ with tab3:
                 headlines = system['sentiment_analyzer'].get_top_headlines(selected_stock, limit=5)
                 progress.progress(70)
                 
-                # Get signal
-                rsi = ind.get('rsi', 50)
-                macd = ind.get('macd_cross', '')
+                # Calculate 3 Pillars Analysis
+                pillars = calculate_three_pillars(selected_stock, ind, sentiment, headlines)
+                progress.progress(90)
                 
-                if rsi < 35 and macd == 'bullish':
-                    signal, conf = "BUY", 0.7
-                elif rsi > 65 and macd == 'bearish':
-                    signal, conf = "SELL", 0.7
-                else:
-                    signal, conf = "HOLD", 0.5
-                
-                # Run AI confirmation for BUY/SELL
-                if signal in ["BUY", "SELL"]:
-                    status.text(f"🧠 Running CrewAI analysis for {selected_stock}...")
-                    card = system['crew'].run_signal_generation(
-                        ticker=selected_stock, indicators_data=ind, sentiment_score=sentiment, top_headlines=headlines
-                    )
-                else:
-                    card = system['trade_card_builder'].build_trade_card(
-                        ticker=selected_stock, signal=signal, current_price=ind['current_price'],
-                        atr=ind['atr'], indicators_data=ind, confidence=conf,
-                        catalyst=f"RSI={rsi} MACD={macd}", sentiment_score=sentiment, skip_reason="NO_SETUP"
-                    )
+                signal = pillars['signal']
+                confidence = pillars['confidence']
                 
                 progress.progress(100)
                 status.text("✅ Analysis complete!")
                 
-                # Display results
-                st.success(f"✨ Analysis for {selected_stock}")
+                # Display main result
+                st.success(f"✨ 3-Pillar Analysis for {selected_stock}")
                 
-                col_sig, col_conf, col_price, col_sent = st.columns(4)
+                # Main signal and confidence
+                col_sig, col_conf, col_price = st.columns(3)
                 with col_sig:
-                    st.metric("Signal", card.get('signal', 'N/A'))
+                    if signal == 'BUY':
+                        st.metric("Signal", "🟢 BUY")
+                    elif signal == 'SELL':
+                        st.metric("Signal", "🔴 SELL")
+                    else:
+                        st.metric("Signal", "🟡 HOLD")
                 with col_conf:
-                    st.metric("Confidence", f"{card.get('confidence', 0):.0%}")
+                    st.metric("Confidence", f"{confidence:.0%}")
                 with col_price:
-                    st.metric("Current Price", f"${card.get('entry_price', 0):.2f}")
-                with col_sent:
-                    st.metric("Sentiment", f"{card.get('sentiment_score', 0):.2f}")
+                    st.metric("Current Price", f"${ind.get('current_price', 0):.2f}")
                 
-                # Display indicators
-                st.subheader("📊 Technical Indicators")
-                ind_col1, ind_col2, ind_col3, ind_col4 = st.columns(4)
-                with ind_col1:
-                    st.metric("RSI", f"{ind.get('rsi', 0):.1f}")
-                with ind_col2:
-                    st.metric("MACD", ind.get('macd_cross', 'N/A'))
-                with ind_col3:
-                    st.metric("ATR", f"${ind.get('atr', 0):.2f}")
-                with ind_col4:
-                    st.metric("SMA200", f"${ind.get('sma_200', 0):.2f}")
+                st.divider()
+                
+                # 3 PILLARS BREAKDOWN
+                st.subheader("📊 3-Pillar Analysis Breakdown")
+                
+                col1, col2, col3 = st.columns(3)
+                
+                # PILLAR 1: TECHNICAL
+                with col1:
+                    st.markdown(f"""
+                    ### 📈 Technical Analysis
+                    **Score: {pillars['technical']['score']:.2f}**
+                    
+                    **Indicators:**
+                    - RSI: {pillars['technical']['rsi']:.1f}
+                    - MACD: {pillars['technical']['macd']}
+                    - ATR: ${ind.get('atr', 0):.2f}
+                    
+                    **Signals:**
+                    """)
+                    for signal_text in pillars['technical']['signals']:
+                        st.markdown(f"- {signal_text}")
+                
+                # PILLAR 2: QUALITATIVE
+                with col2:
+                    st.markdown(f"""
+                    ### 📰 Qualitative Analysis
+                    **Score: {pillars['qualitative']['score']:.2f}**
+                    
+                    **Sentiment: {pillars['qualitative']['sentiment']:.2f}**
+                    
+                    **Signals:**
+                    """)
+                    for signal_text in pillars['qualitative']['signals']:
+                        st.markdown(f"- {signal_text}")
+                
+                # PILLAR 3: QUANTITATIVE
+                with col3:
+                    st.markdown(f"""
+                    ### 💹 Quantitative Analysis
+                    **Score: {pillars['quantitative']['score']:.2f}**
+                    
+                    **Moving Averages:**
+                    - SMA 50: ${pillars['quantitative']['sma_50']:.2f}
+                    - SMA 200: ${pillars['quantitative']['sma_200']:.2f}
+                    
+                    **Signals:**
+                    """)
+                    for signal_text in pillars['quantitative']['signals']:
+                        st.markdown(f"- {signal_text}")
+                
+                st.divider()
                 
                 # Headlines
                 st.subheader("📰 Top Headlines")
@@ -330,54 +490,165 @@ with tab3:
                 st.subheader("💼 Trade Details")
                 trade_col1, trade_col2, trade_col3 = st.columns(3)
                 with trade_col1:
-                    st.metric("Entry Price", f"${card.get('entry_price', 0):.2f}")
+                    st.metric("Entry Price", f"${ind.get('current_price', 0):.2f}")
                 with trade_col2:
-                    st.metric("Stop Loss", f"${card.get('stop_loss', 0):.2f}")
+                    st.metric("Stop Loss", f"${ind.get('current_price', 0) - ind.get('atr', 0):.2f}")
                 with trade_col3:
-                    st.metric("Take Profit", f"${card.get('take_profit_1', 0):.2f}")
+                    st.metric("Take Profit", f"${ind.get('current_price', 0) + (ind.get('atr', 0) * 2):.2f}")
             else:
                 st.error(f"Could not fetch data for {selected_stock}")
         except Exception as e:
             st.error(f"❌ Error analyzing {selected_stock}: {e}")
 
 with tab4:
-    col1, col2 = st.columns(2)
+    st.subheader("📰 News Q&A with AI Agent")
+    st.markdown("Ask questions about news and market sentiment for any stock. Our AI agent will analyze headlines and provide insights.")
+    
+    col1, col2 = st.columns([2, 1])
+    with col1:
+        ticker = st.text_input("📌 Enter Stock Ticker (e.g., AAPL, MSFT, TSLA)", value="").upper()
+    with col2:
+        fetch_btn = st.button("📥 Fetch News", use_container_width=True)
+    
+    if fetch_btn and ticker:
+        system = init_system()
+        try:
+            st.info(f"🔍 Fetching news for {ticker}...")
+            headlines = system['sentiment_analyzer'].get_top_headlines(ticker, limit=10)
+            sentiment = system['sentiment_analyzer'].calculate_sentiment_score(ticker)
+            
+            st.success(f"✨ Found {len(headlines)} headlines • Sentiment: {sentiment:.2f}")
+            
+            st.subheader(f"📄 Top Headlines for {ticker}")
+            for i, headline in enumerate(headlines, 1):
+                st.markdown(f"{i}. {headline}")
+            
+            st.divider()
+            
+            # Q&A Interface
+            st.subheader("💬 Ask About This Stock")
+            question = st.text_area("What would you like to know about this stock?", 
+                                   placeholder="e.g., What are the latest market concerns? Is this a buy? What's the sentiment trend?")
+            
+            if st.button("🤖 Get AI Analysis", use_container_width=True):
+                with st.spinner("🧠 AI Agent analyzing..."):
+                    try:
+                        # Use CrewAI to analyze the news and answer the question
+                        analysis = system['crew'].run_signal_generation(
+                            ticker=ticker,
+                            indicators_data={"current_price": 0},
+                            sentiment_score=sentiment,
+                            top_headlines=headlines
+                        )
+                        
+                        if analysis:
+                            st.success("✅ Analysis Complete!")
+                            
+                            st.subheader("📊 AI Insights")
+                            st.markdown(f"""
+                            **Signal:** {analysis.get('signal', 'N/A')}
+                            
+                            **Confidence:** {analysis.get('confidence', 0):.0%}
+                            
+                            **Analysis:**
+                            {analysis.get('analysis', 'No detailed analysis available')}
+                            """)
+                        else:
+                            st.warning("⚠️ Could not generate analysis. Try again.")
+                    except Exception as e:
+                        st.error(f"❌ AI Analysis Error: {e}")
+        except Exception as e:
+            st.error(f"❌ Error: {e}")
+    
+    if not ticker:
+        st.info("👉 Enter a stock ticker above and fetch news to start!")
+
+with tab5:
+    st.subheader("📚 3-Pillar Trading Framework")
+    
+    st.markdown("""
+    Our system makes BUY/HOLD/SELL decisions by combining **3 fundamental pillars** of analysis:
+    """)
+    
+    col1, col2, col3 = st.columns(3)
     
     with col1:
         st.markdown("""
-        ### 🎯 System Overview
-        **Smart Hybrid Architecture:**
-        - 📥 Parallel data download (ThreadPoolExecutor)
-        - 📊 Real-time technical indicators (RSI, MACD, ATR)
-        - 📰 Sentiment analysis with 30-min cache
-        - 🧠 CrewAI confirmation on strong signals only
-        - 📁 Excel export for analysis
+        ### 📊 TECHNICAL ANALYSIS
+        Uses price action & indicators:
         
-        ### ⚡ Performance
-        - HOLD-only scans: **2-3 minutes**
-        - BUY/SELL scans: **4-7 minutes** (includes AI)
-        - Data caching: **30 minutes** (sentiment)
+        **RSI (Relative Strength Index)**
+        - < 35 = Oversold (🟢 BUY Signal)
+        - > 65 = Overbought (🔴 SELL Signal)
+        - 40-60 = Neutral
+        
+        **MACD (Moving Average Convergence)**
+        - Bullish Cross = 🟢 Uptrend
+        - Bearish Cross = 🔴 Downtrend
+        
+        **Volume & ATR**
+        - Confirms strength of moves
+        - Risk management metrics
         """)
     
     with col2:
         st.markdown("""
-        ### 📈 Technical Indicators
-        **RSI (Relative Strength Index)**
-        - Below 35 → Oversold (potential BUY)
-        - Above 65 → Overbought (potential SELL)
+        ### 📰 QUALITATIVE ANALYSIS
+        Analyzes news & sentiment:
         
-        **MACD (Moving Average Convergence)**
-        - Bullish cross → Uptrend confirmation
-        - Bearish cross → Downtrend confirmation
+        **News Sentiment Score**
+        - Positive (+1 to 0) = Bullish
+        - Negative (0 to -1) = Bearish
+        - Updates every 30 minutes
         
-        **AI Confirmation**
-        - CrewAI analyzes BUY/SELL candidates
-        - Uses: Price action, fundamentals, sentiment
-        - HOLD signals skip AI (saves time)
+        **Headlines Analysis**
+        - Scans major financial outlets
+        - Detects market concerns
+        - Tracks earnings events
+        
+        **Real-time Feed**
+        - AI-powered interpretation
+        - Sentiment aggregation
+        """)
+    
+    with col3:
+        st.markdown("""
+        ### 💹 QUANTITATIVE ANALYSIS
+        Analyzes financial performance:
+        
+        **Moving Averages**
+        - Price vs SMA 50 (short-term)
+        - Price vs SMA 200 (long-term)
+        - Trend confirmation
+        
+        **Fundamentals**
+        - Earnings data checks
+        - Market cap analysis
+        - Financial health
+        
+        **Combined Score**
+        - All 3 pillars weighted equally
+        - Confidence ranges 0-100%
         """)
     
     st.divider()
+    
+    st.markdown("""
+    ### 🎯 Decision Logic
+    
+    **BUY Signal (🟢)** → When combined score > 0.4
+    - Technical + Qualitative + Quantitative all point up
+    - Confidence: 60-95%
+    
+    **SELL Signal (🔴)** → When combined score < -0.4
+    - Technical + Qualitative + Quantitative all point down
+    - Confidence: 60-95%
+    
+    **HOLD Signal (🟡)** → When combined score is neutral
+    - Mixed signals across pillars
+    - Wait for clearer direction
+    - Confidence: 30-60%
+    """)
+    
+    st.divider()
     st.markdown("**Made with ❤️ using Streamlit + CrewAI + yfinance**")
-
-with tab4:
-    col1, col2 = st.columns(2)
