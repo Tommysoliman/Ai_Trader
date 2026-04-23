@@ -1,7 +1,7 @@
 """
 Root-level Streamlit app wrapper for Streamlit Cloud deployment.
 This file is required at the root level for Streamlit Cloud to find it.
-It simply imports and runs the actual app from trading_system/.
+It runs the actual app from trading_system/.
 """
 
 import sys
@@ -16,8 +16,8 @@ TRADING_SYSTEM = ROOT / "trading_system"
 if str(TRADING_SYSTEM) not in sys.path:
     sys.path.insert(0, str(TRADING_SYSTEM))
 
-# Change to trading_system directory so relative imports work
+# Change working directory and import the app
 os.chdir(TRADING_SYSTEM)
 
-# Now run the main app (this will use relative imports from trading_system context)
+# Import and run the trading system app
 from streamlit_app import *
