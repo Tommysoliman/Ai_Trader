@@ -1,19 +1,20 @@
 """
 Sentiment Analysis using Keyword-Based Scoring
-Pulls 24h headlines from NewsAPI and scores them without external libraries
+Pulls headlines from yfinance and scores them without external libraries
 """
 
 import os
 import requests
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
+import yfinance as yf
 
 class SentimentAnalyzer:
     """Calculate sentiment score from financial headlines using keyword scoring"""
     
     def __init__(self, config: Dict):
         self.config = config
-        self.newsapi_key = os.getenv('NEWSAPI_KEY')
+        self.newsapi_key = os.getenv('NEWSAPI_KEY')  # Optional fallback
         self.lookback_hours = config.get('newsapi', {}).get('lookback_hours', 24)
         
         # Cache for sentiment scores and headlines (ticker -> (timestamp, score/headlines))
@@ -37,49 +38,70 @@ class SentimentAnalyzer:
         ]
     
     def fetch_headlines(self, ticker: str) -> Optional[List[Dict]]:
-        """Fetch last 24 hours of news for a ticker from NewsAPI"""
-        if not self.newsapi_key:
-            print("WARNING: NewsAPI key not found in .env, skipping sentiment analysis")
-            return None
-        
+        """Fetch news for a ticker from yfinance (primary) or NewsAPI (fallback)"""
         try:
-            # Calculate date range (last 24 hours)
-            to_date = datetime.utcnow()
-            from_date = to_date - timedelta(hours=self.lookback_hours)
+            # Try yfinance first (no API key needed)
+            print(f"📡 Fetching news from yfinance for {ticker}...")
+            ticker_obj = yf.Ticker(ticker)
+            news_items = ticker_obj.get_news(count=20)
             
-            from_date_str = from_date.strftime('%Y-%m-%d')
-            to_date_str = to_date.strftime('%Y-%m-%d')
-            
-            # Query NewsAPI
-            url = "https://newsapi.org/v2/everything"
-            params = {
-                'q': ticker,  # Search for ticker symbol
-                'from': from_date_str,
-                'to': to_date_str,
-                'sortBy': 'publishedAt',
-                'language': 'en',
-                'apiKey': self.newsapi_key,
-                'pageSize': 100  # Max articles per request
-            }
-            
-            response = requests.get(url, params=params, timeout=10)
-            response.raise_for_status()
-            
-            data = response.json()
-            
-            if data['status'] != 'ok':
-                print(f"WARNING: NewsAPI error for {ticker}: {data.get('message', 'Unknown error')}")
-                return None
-            
-            articles = data.get('articles', [])
-            return articles
-        
-        except requests.exceptions.RequestException as e:
-            print(f"Error fetching headlines for {ticker}: {e}")
-            return None
+            if news_items and len(news_items) > 0:
+                print(f"✅ Got {len(news_items)} headlines from yfinance for {ticker}")
+                # Convert yfinance format to match NewsAPI format
+                articles = []
+                for item in news_items:
+                    article = {
+                        'title': item.get('title', 'No Title'),
+                        'description': item.get('summary', ''),
+                        'url': item.get('link', ''),
+                        'publishedAt': item.get('providerPublishTime', '')
+                    }
+                    articles.append(article)
+                return articles
         except Exception as e:
-            print(f"Error in fetch_headlines: {e}")
-            return None
+            print(f"⚠️  yfinance news fetch failed for {ticker}: {e}")
+        
+        # Fallback to NewsAPI if yfinance fails and key is available
+        if self.newsapi_key:
+            try:
+                print(f"🔄 Falling back to NewsAPI for {ticker}...")
+                # Calculate date range (last 24 hours)
+                to_date = datetime.utcnow()
+                from_date = to_date - timedelta(hours=self.lookback_hours)
+                
+                from_date_str = from_date.strftime('%Y-%m-%d')
+                to_date_str = to_date.strftime('%Y-%m-%d')
+                
+                # Query NewsAPI
+                url = "https://newsapi.org/v2/everything"
+                params = {
+                    'q': ticker,
+                    'from': from_date_str,
+                    'to': to_date_str,
+                    'sortBy': 'publishedAt',
+                    'language': 'en',
+                    'apiKey': self.newsapi_key,
+                    'pageSize': 100
+                }
+                
+                response = requests.get(url, params=params, timeout=10)
+                response.raise_for_status()
+                
+                data = response.json()
+                
+                if data['status'] != 'ok':
+                    print(f"⚠️  NewsAPI error for {ticker}: {data.get('message', 'Unknown error')}")
+                    return None
+                
+                articles = data.get('articles', [])
+                print(f"✅ Got {len(articles)} headlines from NewsAPI for {ticker}")
+                return articles
+            
+            except Exception as e:
+                print(f"❌ NewsAPI fallback failed for {ticker}: {e}")
+        
+        print(f"⚠️  No headlines available for {ticker}")
+        return None
     
     def score_headline(self, headline: str) -> float:
         """Score a single headline on scale -1.0 to +1.0"""
