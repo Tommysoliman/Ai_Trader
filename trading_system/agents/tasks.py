@@ -269,3 +269,34 @@ Ensure all numbers are properly rounded to 2 decimals. All fields must be comple
             agent=agent,
             expected_output="Complete JSON trade card with all required fields, ready for execution"
         )
+    
+    def qa_task(self, agent, question: str, news_context: str) -> Task:
+        """
+        Task: Market Q&A
+        Input: User question + Recent news context from DuckDuckGo
+        Output: Comprehensive, well-sourced answer to the question
+        """
+        return Task(
+            description=f"""
+Answer the following question about financial markets, stocks, or trading based on the most recent news and information available.
+
+USER QUESTION:
+{question}
+
+RECENT NEWS CONTEXT (Last 7 weeks):
+{news_context}
+
+Your task:
+1. Analyze the question carefully
+2. Use the provided recent news context to formulate an accurate, well-informed answer
+3. If the question is about a specific stock or sector, provide relevant details from recent news
+4. Explain the reasoning and context behind your answer
+5. Cite specific news sources or developments where applicable
+6. If information is limited or conflicting, acknowledge that and provide the best analysis you can
+7. Distinguish between facts, recent developments, and analysis/predictions
+
+Provide a comprehensive, clear, and helpful answer that would be useful to an investor or trader.
+            """,
+            agent=agent,
+            expected_output="A comprehensive, well-sourced answer to the user's question with citations to recent news and clear reasoning"
+        )

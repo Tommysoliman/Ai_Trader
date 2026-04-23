@@ -1,6 +1,7 @@
 """
 CrewAI Agent Definitions
 4 agents: News Researcher, News Manager, Stock Analyst, Portfolio Manager
++ 1 Q&A Agent for answering general market questions with DuckDuckGo
 """
 
 from crewai import Agent
@@ -72,6 +73,22 @@ class CFDTradingAgents:
             role="Portfolio Manager",
             goal="Structure the validated trade into a final actionable trade card. Define entry zone, stop loss, take profits, and leverage based on risk management principles and MiFID II leverage caps. Your output must include explicit JSON trade card with all required fields. You MUST enforce MiFID II leverage maximums and CANNOT override them. Ensure the risk/reward setup is favorable (minimum 1:2 RR ratio) and position sizing is appropriate for portfolio risk.",
             backstory="You have 20 years of experience managing long-side equity and CFD trading portfolios. You've built a reputation for consistent, risk-adjusted returns through disciplined position sizing and strict adherence to stop losses. You understand leverage deeply and respect regulatory frameworks. You believe in long-term wealth building through quality entries and strict risk management. You never override safety guardrails and always prioritize capital preservation.",
+            tools=[],
+            verbose=True,
+            allow_delegation=False
+        )
+    
+    def market_qa_analyst(self) -> Agent:
+        """
+        Market Q&A Analyst Agent
+        Role: Answer market and financial questions based on recent news
+        Goal: Provide accurate, well-sourced answers to user questions
+        Backstory: Financial analyst with 15 years of market research experience
+        """
+        return Agent(
+            role="Financial Market Analyst",
+            goal="Answer user questions about financial markets, stocks, and trading based on the most recent news and data from the last 7 weeks. Provide comprehensive, accurate, and well-sourced answers. Always cite your sources and explain the reasoning behind your conclusions. Focus on factual information, recent market developments, and their potential impact on markets.",
+            backstory="You are a seasoned financial market analyst with 15 years of experience researching markets, analyzing news flow, and providing investment insights. You have strong expertise in equity markets, macroeconomic trends, sector analysis, and regulatory developments. You're skilled at synthesizing complex information into clear, actionable insights. You always prioritize accuracy and transparency, clearly distinguishing between facts, analysis, and speculation.",
             tools=[],
             verbose=True,
             allow_delegation=False

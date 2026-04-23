@@ -546,66 +546,116 @@ with tab3:
 
 with tab4:
     st.subheader("📰 News Q&A with AI Agent")
-    st.markdown("Ask questions about news and market sentiment for any stock. Our AI agent will analyze headlines and provide insights.")
+    st.markdown("Ask questions about markets, stocks, and trading. Our AI agent uses the latest 7 weeks of news to answer your questions.")
     
-    col1, col2 = st.columns([2, 1])
-    with col1:
-        ticker = st.text_input("📌 Enter Stock Ticker (e.g., AAPL, MSFT, TSLA)", value="").upper()
-    with col2:
-        fetch_btn = st.button("📥 Fetch News", use_container_width=True)
+    # Create two sub-tabs within the News Q&A
+    qa_tab1, qa_tab2 = st.tabs(["🎯 Ask a Question", "📌 Stock-Specific Analysis"])
     
-    if fetch_btn and ticker:
-        system = init_system()
-        try:
-            st.info(f"🔍 Fetching news for {ticker}...")
-            headlines = system['sentiment_analyzer'].get_top_headlines(ticker, limit=10)
-            sentiment = system['sentiment_analyzer'].calculate_sentiment_score(ticker)
-            
-            st.success(f"✨ Found {len(headlines)} headlines • Sentiment: {sentiment:.2f}")
-            
-            st.subheader(f"📄 Top Headlines for {ticker}")
-            for i, headline in enumerate(headlines, 1):
-                st.markdown(f"{i}. {headline}")
-            
-            st.divider()
-            
-            # Q&A Interface
-            st.subheader("💬 Ask About This Stock")
-            question = st.text_area("What would you like to know about this stock?", 
-                                   placeholder="e.g., What are the latest market concerns? Is this a buy? What's the sentiment trend?")
-            
-            if st.button("🤖 Get AI Analysis", use_container_width=True):
-                with st.spinner("🧠 AI Agent analyzing..."):
+    # ===== SUB-TAB 1: GENERAL Q&A WITH DUCKDUCKGO =====
+    with qa_tab1:
+        st.markdown("Ask any question about financial markets, stocks, sectors, or trading. The AI will search recent news from the last 7 weeks to answer.")
+        
+        question = st.text_area("What's your question?", 
+                               placeholder="e.g., What are investors worried about right now? What happened with Apple stock today? Is the Fed likely to cut rates?",
+                               key="general_question")
+        
+        if st.button("🔍 Search & Analyze", use_container_width=True, key="general_qa_btn"):
+            if question.strip():
+                with st.spinner("🔎 Searching recent news (7 weeks)..."):
                     try:
-                        # Use CrewAI to analyze the news and answer the question
-                        analysis = system['crew'].run_signal_generation(
-                            ticker=ticker,
-                            indicators_data={"current_price": 0},
-                            sentiment_score=sentiment,
-                            top_headlines=headlines
-                        )
+                        system = init_system()
                         
-                        if analysis:
-                            st.success("✅ Analysis Complete!")
-                            
-                            st.subheader("📊 AI Insights")
-                            st.markdown(f"""
-                            **Signal:** {analysis.get('signal', 'N/A')}
-                            
-                            **Confidence:** {analysis.get('confidence', 0):.0%}
-                            
-                            **Analysis:**
-                            {analysis.get('analysis', 'No detailed analysis available')}
-                            """)
-                        else:
-                            st.warning("⚠️ Could not generate analysis. Try again.")
+                        # Import the DuckDuckGo searcher
+                        from utils.duckduckgo_news import search_for_question
+                        
+                        # Search for news related to the question
+                        st.info("📡 Fetching latest news from DuckDuckGo...")
+                        news_context = search_for_question(question, num_results=10)
+                        
+                        if "No recent news found" not in news_context:
+                            st.success("✅ Found recent news. Getting AI analysis...")
+                        
+                        # Run Q&A through CrewAI agent
+                        answer = system['crew'].run_market_qa(question, news_context)
+                        
+                        st.success("✅ Analysis Complete!")
+                        st.subheader("🤖 AI Response")
+                        st.markdown(answer)
+                        
+                        st.divider()
+                        st.caption("💡 This answer is based on news from the last 7 weeks and AI analysis. Always verify before making trading decisions.")
+                    
+                    except ImportError:
+                        st.error("❌ DuckDuckGo module not available. Please install: pip install duckduckgo-search")
                     except Exception as e:
-                        st.error(f"❌ AI Analysis Error: {e}")
-        except Exception as e:
-            st.error(f"❌ Error: {e}")
+                        st.error(f"❌ Error: {e}")
+                        st.info("💡 Tip: Try rephrasing your question or asking about specific stocks/sectors.")
+            else:
+                st.warning("⚠️ Please enter a question first.")
     
-    if not ticker:
-        st.info("👉 Enter a stock ticker above and fetch news to start!")
+    # ===== SUB-TAB 2: STOCK-SPECIFIC ANALYSIS =====
+    with qa_tab2:
+        st.markdown("Enter a stock ticker to fetch headlines and get AI analysis on that specific stock.")
+        
+        col1, col2 = st.columns([2, 1])
+        with col1:
+            ticker = st.text_input("📌 Enter Stock Ticker (e.g., AAPL, MSFT, TSLA)", value="", key="qa_ticker").upper()
+        with col2:
+            fetch_btn = st.button("📥 Fetch News", use_container_width=True, key="qa_fetch_btn")
+        
+        if fetch_btn and ticker:
+            system = init_system()
+            try:
+                st.info(f"🔍 Fetching news for {ticker}...")
+                headlines = system['sentiment_analyzer'].get_top_headlines(ticker, limit=10)
+                sentiment = system['sentiment_analyzer'].calculate_sentiment_score(ticker)
+                
+                st.success(f"✨ Found {len(headlines)} headlines • Sentiment: {sentiment:.2f}")
+                
+                st.subheader(f"📄 Top Headlines for {ticker}")
+                for i, headline in enumerate(headlines, 1):
+                    st.markdown(f"{i}. {headline}")
+                
+                st.divider()
+                
+                # Q&A Interface
+                st.subheader("💬 Ask About This Stock")
+                stock_question = st.text_area("What would you like to know about this stock?", 
+                                             placeholder="e.g., What are the latest market concerns? Is this a buy? What's the sentiment trend?",
+                                             key="stock_question")
+                
+                if st.button("🤖 Get AI Analysis", use_container_width=True, key="stock_qa_btn"):
+                    with st.spinner("🧠 AI Agent analyzing..."):
+                        try:
+                            # Use CrewAI to analyze the news and answer the question
+                            analysis = system['crew'].run_signal_generation(
+                                ticker=ticker,
+                                indicators_data={"current_price": 0},
+                                sentiment_score=sentiment,
+                                top_headlines=headlines
+                            )
+                            
+                            if analysis:
+                                st.success("✅ Analysis Complete!")
+                                
+                                st.subheader("📊 AI Insights")
+                                st.markdown(f"""
+                                **Signal:** {analysis.get('signal', 'N/A')}
+                                
+                                **Confidence:** {analysis.get('confidence', 0):.0%}
+                                
+                                **Analysis:**
+                                {analysis.get('analysis', 'No detailed analysis available')}
+                                """)
+                            else:
+                                st.warning("⚠️ Could not generate analysis. Try again.")
+                        except Exception as e:
+                            st.error(f"❌ AI Analysis Error: {e}")
+            except Exception as e:
+                st.error(f"❌ Error: {e}")
+        
+        if not ticker:
+            st.info("👉 Enter a stock ticker above and fetch news to start!")
 
 with tab5:
     st.subheader("📚 3-Pillar Trading Framework")

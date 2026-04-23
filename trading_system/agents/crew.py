@@ -248,3 +248,43 @@ class CFDTradingCrew:
             return leverage.get('crypto_cfd_max', 2)
         else:
             return leverage.get('stock_cfd_max', 5)
+    
+    def run_market_qa(self, question: str, news_context: str) -> Optional[str]:
+        """
+        Run Q&A pipeline for general market questions
+        
+        Args:
+            question: User question about markets/stocks
+            news_context: Formatted news context from DuckDuckGo search
+        
+        Returns:
+            AI-generated answer based on recent news
+        """
+        try:
+            # Create Q&A agent
+            agents_factory = CFDTradingAgents()
+            qa_agent = agents_factory.market_qa_analyst()
+            
+            # Create Q&A task
+            qa_task = self.tasks_factory.qa_task(
+                agent=qa_agent,
+                question=question,
+                news_context=news_context
+            )
+            
+            # Run Q&A crew
+            qa_crew = Crew(
+                agents=[qa_agent],
+                tasks=[qa_task],
+                process=Process.sequential,
+                verbose=False
+            )
+            
+            qa_result = qa_crew.kickoff()
+            answer = str(qa_result).strip()
+            
+            return answer
+        
+        except Exception as e:
+            print(f"ERROR: Q&A error: {str(e)}")
+            return f"Sorry, I encountered an error processing your question: {str(e)}"
