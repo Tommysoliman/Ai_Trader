@@ -398,8 +398,23 @@ with tab1:
     
     with col1:
         st.subheader("Quick Scan")
+        
+        # Mode selector
+        scan_mode = st.radio(
+            "Select scan mode:",
+            ["⚡ Fast Mode (2-5 min)", "🧠 Full Analysis (10+ min)"],
+            horizontal=True,
+            help="Fast Mode: indicators only. Full: includes AI analysis"
+        )
+        is_fast_mode = "Fast" in scan_mode
+        
+        if is_fast_mode:
+            st.info("⚡ **Fast Mode**: Indicators + sentiment only (no LLM calls)")
+        else:
+            st.info("🧠 **Full Mode**: Runs CrewAI for trade recommendations")
+        
         st.markdown("""
-        Run a full daily scan on the watchlist:
+        Run a daily scan on the watchlist:
         - **Parallel download** OHLCV data (5x faster)
         - Calculate technical indicators
         - Fetch news & sentiment (cached)
@@ -482,7 +497,33 @@ with tab1:
                     sentiment_score = system['sentiment_analyzer'].calculate_sentiment_score(ticker)
                     top_headlines = system['sentiment_analyzer'].get_top_headlines(ticker, limit=3)
                     
-                    if is_weak_signal:
+                    # In FAST MODE, skip all CrewAI calls
+                    if is_fast_mode:
+                        status_text.text(f"⚡ {ticker} - fast mode (indicators only)")
+                        # Generate signal from indicators alone
+                        if rsi < 35 and macd_cross == 'bullish':
+                            signal = "BUY"
+                            confidence = 0.7
+                        elif rsi > 65 and macd_cross == 'bearish':
+                            signal = "SELL"
+                            confidence = 0.7
+                        else:
+                            signal = "HOLD"
+                            confidence = 0.5
+                        
+                        trade_card = system['trade_card_builder'].build_trade_card(
+                            ticker=ticker,
+                            signal=signal,
+                            current_price=indicators_data['current_price'],
+                            atr=indicators_data['atr'],
+                            indicators_data=indicators_data,
+                            confidence=confidence,
+                            catalyst=f"RSI={rsi} MACD={macd_cross}",
+                            sentiment_score=sentiment_score,
+                            skip_reason="FAST_MODE"
+                        )
+                        all_trade_cards.append(trade_card)
+                    elif is_weak_signal:
                         # Skip CrewAI for weak signals - just hold
                         status_text.text(f"⏭️ Skipping CrewAI for {ticker} (weak signal)")
                         trade_card = system['trade_card_builder'].build_trade_card(
