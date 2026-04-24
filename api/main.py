@@ -96,7 +96,9 @@ def analyze_stock():
         
         # Calculate indicators
         indicators = indicator_calc.calculate_all_indicators(ticker)
-        
+        if indicators is None:
+            return jsonify({"error": f"Could not fetch market data for {ticker}. Check the ticker symbol is valid."}), 400
+
         # Run 3-pillar analysis
         three_pillar = calculate_three_pillars(
             ticker=ticker,
@@ -134,14 +136,18 @@ def daily_scan():
                 sentiment = sentiment_analyzer.calculate_sentiment_score(ticker)
                 indicators = indicator_calc.calculate_all_indicators(ticker)
                 headlines = sentiment_analyzer.get_top_headlines(ticker, limit=5)
-                
+
+                if indicators is None:
+                    results.append({"ticker": ticker, "signal": "ERROR", "error": "No market data"})
+                    continue
+
                 three_pillar = calculate_three_pillars(
                     ticker=ticker,
                     indicators_data=indicators,
                     sentiment_score=sentiment,
                     headlines=headlines
                 )
-                
+
                 results.append({
                     "ticker": ticker,
                     "signal": three_pillar.get("signal", "HOLD"),
