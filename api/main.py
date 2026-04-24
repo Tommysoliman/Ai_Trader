@@ -3,6 +3,9 @@ Flask API for AI Traders - Converts Streamlit app to REST API
 Same functionality as Streamlit app but deployable anywhere
 """
 
+import warnings
+warnings.filterwarnings("ignore", message="Mixing V1 models and V2 models", category=UserWarning)
+
 import sys
 import os
 from pathlib import Path
