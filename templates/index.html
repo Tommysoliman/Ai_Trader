@@ -738,9 +738,14 @@ async function runScan(tickers) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tickers })
         });
-        const d = await r.json();
 
-        if (!r.ok || d.error) { alert('Error: ' + (d.error || 'Unknown')); return; }
+        let d;
+        try { d = await r.json(); } catch (_) { d = {}; }
+
+        if (!r.ok || d.error) {
+            alert('Scan error: ' + (d.error || `HTTP ${r.status} — check server logs`));
+            return;
+        }
 
         let tbody = '';
         d.results.forEach(row => {
@@ -760,6 +765,9 @@ async function runScan(tickers) {
 
         document.getElementById('scan-table-body').innerHTML = tbody;
         document.getElementById('scan-results').style.display = 'block';
+
+        // Keep Results tab in sync — no extra fetch needed
+        populateResultsTab(d.results);
     } catch (e) {
         alert('Scan error: ' + e);
     } finally {
@@ -768,28 +776,32 @@ async function runScan(tickers) {
 }
 
 // ── TAB 3: Results ────────────────────────────────────────────────────────
+function populateResultsTab(rows) {
+    if (!rows || !rows.length) return;
+    let tbody = '';
+    rows.forEach(row => {
+        tbody += `
+            <tr>
+                <td><strong>${row.ticker}</strong></td>
+                <td>${signalBadgeHtml(row.signal)}</td>
+                <td>${row.confidence != null ? (row.confidence * 100).toFixed(0) + '%' : 'N/A'}</td>
+                <td>${scorePill(row.technical)}</td>
+                <td>${scorePill(row.qualitative)}</td>
+                <td>${scorePill(row.quantitative)}</td>
+                <td>${scorePill(row.combined_score)}</td>
+            </tr>`;
+    });
+    document.getElementById('results-tbody').innerHTML = tbody;
+    document.getElementById('results-table').style.display = 'block';
+    document.getElementById('no-results').style.display = 'none';
+}
+
 async function loadResults() {
     try {
         const r = await fetch('/api/results');
         const d = await r.json();
         if (d.error || !d.results?.length) return;
-
-        let tbody = '';
-        d.results.forEach(row => {
-            tbody += `
-                <tr>
-                    <td><strong>${row.ticker}</strong></td>
-                    <td>${signalBadgeHtml(row.signal)}</td>
-                    <td>${row.confidence != null ? (row.confidence * 100).toFixed(0) + '%' : 'N/A'}</td>
-                    <td>${scorePill(row.technical)}</td>
-                    <td>${scorePill(row.qualitative)}</td>
-                    <td>${scorePill(row.quantitative)}</td>
-                    <td>${scorePill(row.combined_score)}</td>
-                </tr>`;
-        });
-        document.getElementById('results-tbody').innerHTML = tbody;
-        document.getElementById('results-table').style.display = 'block';
-        document.getElementById('no-results').style.display = 'none';
+        populateResultsTab(d.results);
     } catch (e) { console.error(e); }
 }
 
