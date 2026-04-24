@@ -1,5 +1,10 @@
 {
-  "buildCommand": "pip install -r requirements-api.txt",
-  "startCommand": "gunicorn -w 4 -b 0.0.0.0:$PORT api.main:app",
-  "environmentVariables": {}
+  "$schema": "https://railway.app/railway.schema.json",
+  "build": {
+    "buildCommand": "pip install -r requirements.txt"
+  },
+  "deploy": {
+    "startCommand": "gunicorn -w 4 -b 0.0.0.0:$PORT api.main:app",
+    "healthcheckPath": "/health"
+  }
 }
