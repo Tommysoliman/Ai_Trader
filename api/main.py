@@ -36,7 +36,7 @@ INDUSTRIES = {
     "🏦 Finance": ["JPM", "BAC", "GS", "WFC", "MS", "MA", "V"],
     "🛍️ Consumer": ["AMZN", "MCD", "PG", "NKE", "SBUX"],
     "📦 Commodities": ["GLD", "USO", "SLV", "FCX", "DBA"],
-    "🇪🇬 Egypt": ["HRHO.CA", "BTFH.CA", "SWDY.CA", "MOIL.CA", "CCAP.CA", "COMI.CA", "CBKD.CA", "CIBEY.CA"]
+    "🇪🇬 Egypt": ["HRHO.CA", "BTFH.CA", "SWDY.CA", "MOIL.CA", "CCAP.CA", "COMI.CA"]
 }
 
 STOCK_NAMES = {
@@ -60,7 +60,6 @@ STOCK_NAMES = {
     "HRHO.CA": "Heliopolis Housing", "BTFH.CA": "Beltone Financial",
     "SWDY.CA": "El Sewedy Electric", "MOIL.CA": "MOIL",
     "CCAP.CA": "Cairo Capital Brokerage", "COMI.CA": "Commercial Intl Bank",
-    "CBKD.CA": "Credit Bank of Egypt", "CIBEY.CA": "CIB Egypt ADR"
 }
 
 # Default config (can be empty for now)
