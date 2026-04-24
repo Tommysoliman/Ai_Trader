@@ -343,47 +343,53 @@
              TAB 2 — DAILY SCAN
         ═══════════════════════════════════════════ -->
         <div class="tab-pane fade" id="tab-scan">
-            <div class="card p-4">
-                <h5 class="mb-1">🚀 Daily Scan</h5>
-                <p class="small mb-4" style="color:#90a8c0;">Scan every stock across all industries in one click, or enter custom tickers below.</p>
+            <div class="row justify-content-center">
+                <div class="col-lg-10 col-xl-8">
+                    <div class="card p-5">
+                        <h3 class="mb-2 text-center fw-bold">🚀 Daily Scan</h3>
+                        <p class="text-center small mb-4" style="color:#90a8c0;">Select an industry and analyse all its stocks in one click.</p>
 
-                <!-- Scan All button -->
-                <button class="btn btn-scan-all btn-lg w-100 mb-3 py-3 fs-5" onclick="scanAll()">
-                    <i class="fas fa-globe me-2"></i> Scan All Stocks
-                    <span class="badge bg-white text-dark ms-2 small">28 tickers</span>
-                </button>
+                        <div class="mb-4">
+                            <label class="form-label fs-6">📍 Select Industry</label>
+                            <select class="form-select form-select-lg" id="scan-industry-select">
+                                <option value="">Loading industries…</option>
+                            </select>
+                        </div>
 
-                <div class="text-center text-white-50 small mb-3">— or enter custom tickers —</div>
+                        <!-- Industry tickers preview -->
+                        <div id="scan-industry-preview" class="mb-4" style="display:none;">
+                            <p class="small mb-1" style="color:#90a8c0;">Stocks in this industry:</p>
+                            <div id="scan-industry-tickers" class="d-flex flex-wrap gap-2"></div>
+                        </div>
 
-                <div class="mb-3">
-                    <label class="form-label">📌 Custom Tickers (comma-separated)</label>
-                    <textarea class="form-control" id="scan-tickers" rows="2" placeholder="AAPL, MSFT, TSLA, NVDA"></textarea>
-                </div>
-                <button class="btn btn-primary w-100 mb-3" onclick="scanCustom()">
-                    <i class="fas fa-play me-1"></i> Scan Custom
-                </button>
+                        <button class="btn btn-primary btn-lg w-100 py-3 fs-5" id="scan-analyse-btn" onclick="scanIndustry()" disabled>
+                            <i class="fas fa-chart-bar me-2"></i> Analyse Industry
+                        </button>
 
-                <div class="loading text-center" id="scan-loading">
-                    <div class="spinner-border" role="status"></div>
-                    <p class="mt-2 text-white" id="scan-loading-msg">Scanning stocks…</p>
-                </div>
+                        <div class="loading text-center mt-4" id="scan-loading">
+                            <div class="spinner-border" role="status"></div>
+                            <p class="mt-2 text-white" id="scan-loading-msg">Scanning stocks…</p>
+                        </div>
 
-                <div id="scan-results" style="display:none;">
-                    <div class="table-responsive">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>Ticker</th>
-                                    <th>Signal</th>
-                                    <th>Conf.</th>
-                                    <th>Tech 📊</th>
-                                    <th>Qual 📰</th>
-                                    <th>Quant 💹</th>
-                                    <th>Combined</th>
-                                </tr>
-                            </thead>
-                            <tbody id="scan-table-body"></tbody>
-                        </table>
+                        <div id="scan-results" style="display:none;" class="mt-4">
+                            <h6 class="mb-3" id="scan-results-label" style="color:#90a8c0;"></h6>
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th>Ticker</th>
+                                            <th>Signal</th>
+                                            <th>Conf.</th>
+                                            <th>Tech 📊</th>
+                                            <th>Qual 📰</th>
+                                            <th>Quant 💹</th>
+                                            <th>Combined</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="scan-table-body"></tbody>
+                                </table>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -558,6 +564,10 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('industry-select').addEventListener('change', function () {
         loadStocks(this.value);
     });
+    loadScanIndustries();
+    document.getElementById('scan-industry-select').addEventListener('change', function () {
+        loadScanIndustryPreview(this.value);
+    });
 });
 
 async function loadIndustries() {
@@ -665,17 +675,56 @@ function setPillar(id, score, lines) {
 }
 
 // ── TAB 2: Daily Scan ─────────────────────────────────────────────────────
-async function scanAll() {
-    document.getElementById('scan-loading-msg').textContent =
-        `Scanning all ${ALL_TICKERS.length} stocks — this may take a few minutes…`;
-    await runScan(ALL_TICKERS);
+async function loadScanIndustries() {
+    try {
+        const r = await fetch('/api/industries');
+        const d = await r.json();
+        const sel = document.getElementById('scan-industry-select');
+        sel.innerHTML = '<option value="">— Choose an industry —</option>';
+        d.industries.forEach(i => sel.innerHTML += `<option value="${i}">${i}</option>`);
+    } catch (e) { console.error(e); }
 }
 
-async function scanCustom() {
-    const raw = document.getElementById('scan-tickers').value;
-    const tickers = raw.split(',').map(t => t.trim().toUpperCase()).filter(Boolean);
-    if (!tickers.length) { alert('Please enter at least one ticker'); return; }
-    document.getElementById('scan-loading-msg').textContent = `Scanning ${tickers.length} stocks…`;
+async function loadScanIndustryPreview(industry) {
+    const btn = document.getElementById('scan-analyse-btn');
+    const preview = document.getElementById('scan-industry-preview');
+    const tickerBox = document.getElementById('scan-industry-tickers');
+
+    if (!industry) {
+        preview.style.display = 'none';
+        btn.disabled = true;
+        return;
+    }
+
+    try {
+        const r = await fetch(`/api/stocks/${encodeURIComponent(industry)}`);
+        const d = await r.json();
+        tickerBox.innerHTML = (d.stocks || []).map(t =>
+            `<span class="badge" style="background:rgba(31,119,180,0.25);color:#7ec8e3;border:1px solid rgba(31,119,180,0.4);font-size:0.82rem;">${t}</span>`
+        ).join('');
+        preview.style.display = 'block';
+        btn.disabled = false;
+    } catch (e) {
+        console.error(e);
+        btn.disabled = true;
+    }
+}
+
+async function scanIndustry() {
+    const industry = document.getElementById('scan-industry-select').value;
+    if (!industry) { alert('Please select an industry'); return; }
+
+    let tickers = [];
+    try {
+        const r = await fetch(`/api/stocks/${encodeURIComponent(industry)}`);
+        const d = await r.json();
+        tickers = d.stocks || [];
+    } catch (e) { alert('Could not load tickers'); return; }
+
+    document.getElementById('scan-loading-msg').textContent =
+        `Analysing ${tickers.length} stocks in ${industry}…`;
+    document.getElementById('scan-results-label').textContent =
+        `Results for ${industry} (${tickers.length} stocks)`;
     await runScan(tickers);
 }
 
