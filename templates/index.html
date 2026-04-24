@@ -116,6 +116,50 @@
             border-radius: 5px;
         }
 
+        /* Force all text inside cards to be visible */
+        .card h5, .card h6 {
+            color: #ffffff !important;
+            font-weight: 600;
+        }
+
+        .card p, .card li, .card small {
+            color: #e0e6f0 !important;
+        }
+
+        .card strong {
+            color: #ffffff !important;
+        }
+
+        .form-label {
+            color: #c8d8f0 !important;
+            font-weight: 500;
+        }
+
+        /* Tab buttons */
+        .nav-tabs .nav-link {
+            color: #a0b4cc !important;
+            background: transparent;
+            border-color: transparent;
+        }
+
+        .nav-tabs .nav-link.active {
+            color: #ffffff !important;
+            background: var(--card-bg);
+            border-color: rgba(31, 119, 180, 0.5) rgba(31, 119, 180, 0.5) var(--card-bg);
+            font-weight: 600;
+        }
+
+        /* Dropdown option text (for browsers that support it) */
+        .form-select option {
+            background: #16213e;
+            color: #fff;
+        }
+
+        /* Table text */
+        .table td, .table th {
+            color: #e0e6f0 !important;
+        }
+
         @media (max-width: 768px) {
             body { font-size: 14px; }
             .tab-pane { min-height: 300px; }
