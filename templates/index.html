@@ -442,15 +442,21 @@
                 });
                 const data = await response.json();
 
-                document.getElementById('analyze-signal').textContent = data.analysis.signal;
-                document.getElementById('analyze-signal').className = `badge badge-${data.analysis.signal.toLowerCase()}`;
-                document.getElementById('analyze-confidence').textContent = (data.analysis.confidence * 100).toFixed(0) + '%';
-                document.getElementById('analyze-sentiment').textContent = data.sentiment.toFixed(2);
-                document.getElementById('analyze-technical').textContent = data.analysis.technical.toFixed(2);
+                if (!response.ok || data.error) {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                    return;
+                }
+
+                const signal = data.analysis?.signal ?? 'N/A';
+                document.getElementById('analyze-signal').textContent = signal;
+                document.getElementById('analyze-signal').className = `badge badge-${signal.toLowerCase()}`;
+                document.getElementById('analyze-confidence').textContent = ((data.analysis?.confidence ?? 0) * 100).toFixed(0) + '%';
+                document.getElementById('analyze-sentiment').textContent = (data.sentiment ?? 0).toFixed(2);
+                document.getElementById('analyze-technical').textContent = (data.analysis?.technical ?? 0).toFixed(2);
 
                 // Show headlines
                 let headlinesHtml = '<h6>📰 Top Headlines</h6>';
-                data.headlines.slice(0, 5).forEach(h => {
+                (data.headlines ?? []).slice(0, 5).forEach(h => {
                     headlinesHtml += `<div class="headline">${h}</div>`;
                 });
                 document.getElementById('analyze-headlines').innerHTML = headlinesHtml;
@@ -483,15 +489,21 @@
                 });
                 const data = await response.json();
 
+                if (!response.ok || data.error) {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                    return;
+                }
+
                 let tbody = '';
                 data.results.forEach(r => {
-                    const signal = r.signal || 'ERROR';
+                    const signal = r.signal ?? 'ERROR';
+                    const confidence = r.confidence != null ? (r.confidence * 100).toFixed(0) + '%' : 'N/A';
                     tbody += `
                         <tr>
                             <td>${r.ticker}</td>
                             <td><span class="badge badge-${signal.toLowerCase()}">${signal}</span></td>
-                            <td>${(r.confidence * 100).toFixed(0)}%</td>
-                            <td>${(r.sentiment || 0).toFixed(2)}</td>
+                            <td>${confidence}</td>
+                            <td>${(r.sentiment ?? 0).toFixed(2)}</td>
                         </tr>
                     `;
                 });
@@ -521,7 +533,13 @@
                     body: JSON.stringify({ question })
                 });
                 const data = await response.json();
-                document.getElementById('qa-answer').innerHTML = data.answer.replace(/\n/g, '<br>');
+
+                if (!response.ok || data.error) {
+                    alert('Error: ' + (data.error || 'Unknown error'));
+                    return;
+                }
+
+                document.getElementById('qa-answer').innerHTML = (data.answer ?? '').replace(/\n/g, '<br>');
                 document.getElementById('qa-results').style.display = 'block';
             } catch (error) {
                 alert('Error: ' + error);
