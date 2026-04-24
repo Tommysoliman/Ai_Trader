@@ -39,6 +39,30 @@ INDUSTRIES = {
     "🇪🇬 Egypt": ["HRHO.CA", "BTFH.CA", "SWDY.CA", "MOIL.CA", "CCAP.CA", "COMI.CA", "CBKD.CA", "CIBEY.CA"]
 }
 
+STOCK_NAMES = {
+    # Energy
+    "XOM": "Exxon Mobil", "CVX": "Chevron", "COP": "ConocoPhillips",
+    "MPC": "Marathon Petroleum", "FANG": "Diamondback Energy",
+    # Technology
+    "NVDA": "NVIDIA", "MSFT": "Microsoft", "META": "Meta Platforms",
+    "AAPL": "Apple", "TSLA": "Tesla", "ORCL": "Oracle",
+    "INTC": "Intel", "GOOGL": "Alphabet (Google)",
+    # Finance
+    "JPM": "JPMorgan Chase", "BAC": "Bank of America", "GS": "Goldman Sachs",
+    "WFC": "Wells Fargo", "MS": "Morgan Stanley", "MA": "Mastercard", "V": "Visa",
+    # Consumer
+    "AMZN": "Amazon", "MCD": "McDonald's", "PG": "Procter & Gamble",
+    "NKE": "Nike", "SBUX": "Starbucks",
+    # Commodities
+    "GLD": "SPDR Gold ETF", "USO": "US Oil Fund", "SLV": "iShares Silver Trust",
+    "FCX": "Freeport-McMoRan", "DBA": "DB Agriculture ETF",
+    # Egypt
+    "HRHO.CA": "Heliopolis Housing", "BTFH.CA": "Beltone Financial",
+    "SWDY.CA": "El Sewedy Electric", "MOIL.CA": "MOIL",
+    "CCAP.CA": "Cairo Capital Brokerage", "COMI.CA": "Commercial Intl Bank",
+    "CBKD.CA": "Credit Bank of Egypt", "CIBEY.CA": "CIB Egypt ADR"
+}
+
 # Default config (can be empty for now)
 CONFIG = {}
 
@@ -78,7 +102,11 @@ def get_stocks(industry):
     """Get stocks for an industry"""
     if industry not in INDUSTRIES:
         return jsonify({"error": "Industry not found"}), 404
-    return jsonify({"stocks": INDUSTRIES[industry]})
+    stocks = [
+        {"ticker": t, "name": STOCK_NAMES.get(t, t)}
+        for t in INDUSTRIES[industry]
+    ]
+    return jsonify({"stocks": stocks})
 
 
 @app.route('/api/analyze-stock', methods=['POST'])

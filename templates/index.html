@@ -530,14 +530,18 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 
-// ── All tickers mirroring backend INDUSTRIES dict ─────────────────────────
-const ALL_TICKERS = [
-    'XOM','CVX','COP','MPC','FANG',
-    'NVDA','MSFT','META','AAPL','TSLA','ORCL',
-    'JPM','BAC','GS','WFC','MS','MA','V',
-    'AMZN','MCD','PG','NKE','SBUX',
-    'GLD','USO','SLV','FCX','DBA'
-];
+// ── Stock name lookup (mirrors backend STOCK_NAMES) ──────────────────────
+const STOCK_NAMES = {
+    XOM:"Exxon Mobil",CVX:"Chevron",COP:"ConocoPhillips",MPC:"Marathon Petroleum",FANG:"Diamondback Energy",
+    NVDA:"NVIDIA",MSFT:"Microsoft",META:"Meta Platforms",AAPL:"Apple",TSLA:"Tesla",ORCL:"Oracle",INTC:"Intel",GOOGL:"Alphabet (Google)",
+    JPM:"JPMorgan Chase",BAC:"Bank of America",GS:"Goldman Sachs",WFC:"Wells Fargo",MS:"Morgan Stanley",MA:"Mastercard",V:"Visa",
+    AMZN:"Amazon",MCD:"McDonald's",PG:"Procter & Gamble",NKE:"Nike",SBUX:"Starbucks",
+    GLD:"SPDR Gold ETF",USO:"US Oil Fund",SLV:"iShares Silver Trust",FCX:"Freeport-McMoRan",DBA:"DB Agriculture ETF",
+    "HRHO.CA":"Heliopolis Housing","BTFH.CA":"Beltone Financial","SWDY.CA":"El Sewedy Electric",
+    "MOIL.CA":"MOIL","CCAP.CA":"Cairo Capital Brokerage","COMI.CA":"Commercial Intl Bank",
+    "CBKD.CA":"Credit Bank of Egypt","CIBEY.CA":"CIB Egypt ADR"
+};
+function stockName(ticker) { return STOCK_NAMES[ticker] || ''; }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
 function scoreColor(s) {
@@ -594,7 +598,7 @@ async function loadStocks(industry) {
         const d = await r.json();
         const sel = document.getElementById('stock-select');
         sel.innerHTML = '<option value="">Select Stock</option>';
-        d.stocks.forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
+        d.stocks.forEach(s => sel.innerHTML += `<option value="${s.ticker}">${s.ticker} — ${s.name}</option>`);
     } catch (e) { console.error(e); }
 }
 
@@ -626,7 +630,8 @@ async function analyzeStock() {
         const bk      = a.breakdown || {};
 
         // Hero
-        document.getElementById('analyze-ticker-label').textContent = ticker;
+        const name = stockName(ticker);
+        document.getElementById('analyze-ticker-label').textContent = name ? `${ticker} — ${name}` : ticker;
         const sigEl = document.getElementById('analyze-signal');
         sigEl.textContent = signal;
         sigEl.className = `signal-badge badge-${signal.toLowerCase()}`;
@@ -707,8 +712,8 @@ async function loadScanIndustryPreview(industry) {
     try {
         const r = await fetch(`/api/stocks/${encodeURIComponent(industry)}`);
         const d = await r.json();
-        tickerBox.innerHTML = (d.stocks || []).map(t =>
-            `<span class="badge" style="background:rgba(31,119,180,0.25);color:#7ec8e3;border:1px solid rgba(31,119,180,0.4);font-size:0.82rem;">${t}</span>`
+        tickerBox.innerHTML = (d.stocks || []).map(s =>
+            `<span class="badge" style="background:rgba(31,119,180,0.25);color:#7ec8e3;border:1px solid rgba(31,119,180,0.4);font-size:0.82rem;">${s.ticker} <span style="opacity:0.7;font-weight:400">${s.name}</span></span>`
         ).join('');
         preview.style.display = 'block';
         btn.disabled = false;
@@ -726,7 +731,7 @@ async function scanIndustry() {
     try {
         const r = await fetch(`/api/stocks/${encodeURIComponent(industry)}`);
         const d = await r.json();
-        tickers = d.stocks || [];
+        tickers = (d.stocks || []).map(s => s.ticker);
     } catch (e) { alert('Could not load tickers'); return; }
 
     document.getElementById('scan-loading-msg').textContent =
@@ -759,9 +764,10 @@ async function runScan(tickers) {
         d.results.forEach(row => {
             const signal = row.signal ?? 'ERROR';
             const conf   = row.confidence != null ? (row.confidence * 100).toFixed(0) + '%' : 'N/A';
+            const name   = stockName(row.ticker);
             tbody += `
                 <tr>
-                    <td><strong>${row.ticker}</strong></td>
+                    <td><strong>${row.ticker}</strong>${name ? `<br><small style="color:#7ec8e3;font-weight:400">${name}</small>` : ''}</td>
                     <td>${signalBadgeHtml(signal)}</td>
                     <td>${conf}</td>
                     <td class="score-cell">${scorePill(row.technical)}</td>
@@ -788,9 +794,10 @@ function populateResultsTab(rows) {
     if (!rows || !rows.length) return;
     let tbody = '';
     rows.forEach(row => {
+        const name = stockName(row.ticker);
         tbody += `
             <tr>
-                <td><strong>${row.ticker}</strong></td>
+                <td><strong>${row.ticker}</strong>${name ? `<br><small style="color:#7ec8e3;font-weight:400">${name}</small>` : ''}</td>
                 <td>${signalBadgeHtml(row.signal)}</td>
                 <td>${row.confidence != null ? (row.confidence * 100).toFixed(0) + '%' : 'N/A'}</td>
                 <td>${scorePill(row.technical)}</td>
