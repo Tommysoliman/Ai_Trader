@@ -91,9 +91,13 @@ def analyze_stock():
             return jsonify({"error": "Ticker required"}), 400
         
         # Get sentiment and headlines
-        sentiment_score = sentiment_analyzer.calculate_sentiment_score(ticker)
-        headlines = sentiment_analyzer.get_top_headlines(ticker, limit=10)
-        
+        try:
+            sentiment_score = sentiment_analyzer.calculate_sentiment_score(ticker)
+            headlines = sentiment_analyzer.get_top_headlines(ticker, limit=10)
+        except Exception:
+            sentiment_score = 0.0
+            headlines = []
+
         # Calculate indicators
         indicators = indicator_calc.calculate_all_indicators(ticker)
         if indicators is None:
@@ -224,7 +228,9 @@ def ask_question():
         
         # Search for relevant news
         news_context = search_for_question(question, num_results=10)
-        
+        if not news_context or not news_context.strip():
+            news_context = "No recent news found. Please answer based on general market knowledge."
+
         # Get AI answer from CrewAI
         answer = crew.run_market_qa(question, news_context)
         
@@ -255,6 +261,9 @@ def stock_qa():
         
         # Run signal generation (includes Q&A analysis)
         indicators = indicator_calc.calculate_all_indicators(ticker)
+        if indicators is None:
+            return jsonify({"error": f"Could not fetch market data for {ticker}. Check the ticker symbol is valid."}), 400
+
         analysis = crew.run_signal_generation(
             ticker=ticker,
             indicators_data=indicators,
@@ -312,7 +321,10 @@ def get_framework():
 # ========== HELPER FUNCTIONS ==========
 def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines):
     """Calculate 3-pillar score (same logic as Streamlit app)"""
-    
+    if indicators_data is None:
+        return {"signal": "HOLD", "confidence": 0.0, "technical": 0.0,
+                "qualitative": 0.0, "quantitative": 0.0, "combined_score": 0.0}
+
     # Technical Pillar (-1 to +1)
     rsi = indicators_data.get('rsi', 50)
     technical_score = 0

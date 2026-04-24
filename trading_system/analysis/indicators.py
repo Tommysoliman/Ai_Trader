@@ -243,7 +243,7 @@ class IndicatorCalculator:
             
             # Get latest values (handle NaN)
             rsi_current = float(rsi.iloc[-1]) if not pd.isna(rsi.iloc[-1]) else 50.0
-            atr_current = float(atr.iloc[-1]) if not pd.isna(atr.iloc[-1]) else 0.1
+            atr_current = float(atr.iloc[-1]) if not pd.isna(atr.iloc[-1]) else max(1.0, current_price * 0.02)
             sma_200_current = float(sma_200.iloc[-1]) if not pd.isna(sma_200.iloc[-1]) else current_price
             sma_50_current = float(sma_50.iloc[-1]) if not pd.isna(sma_50.iloc[-1]) else current_price
             macd_cross = self.detect_macd_cross(macd_line, macd_signal, 
