@@ -1,4 +1,5 @@
 ﻿# DEPRECATED: Old app - use trading_system/streamlit_app.py instead
+# DEPRECATED: Old app - use trading_system/streamlit_app.py instead
 import streamlit as st
 
 st.set_page_config(page_title="AI Traders", layout="centered")
