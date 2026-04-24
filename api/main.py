@@ -36,7 +36,7 @@ INDUSTRIES = {
     "🏦 Finance": ["JPM", "BAC", "GS", "WFC", "MS", "MA", "V"],
     "🛍️ Consumer": ["AMZN", "MCD", "PG", "NKE", "SBUX"],
     "📦 Commodities": ["GLD", "USO", "SLV", "FCX", "DBA"],
-    "🇪🇬 Egypt": ["HRHO", "BTFH", "SWDY", "MOIL", "CCAP", "COMI", "CBKD", "CIBEY"]
+    "🇪🇬 Egypt": ["HRHO.CA", "BTFH.CA", "SWDY.CA", "MOIL.CA", "CCAP.CA", "COMI.CA", "CBKD.CA", "CIBEY.CA"]
 }
 
 # Default config (can be empty for now)
