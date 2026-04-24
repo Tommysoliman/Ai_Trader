@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>🤖 AI Traders - Trading Signal System</title>
+    <title>AI Traders - Trading Signal System</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
@@ -14,8 +14,6 @@
             --warning: #ffa500;
             --dark-bg: #1a1a2e;
             --card-bg: #16213e;
-
-            /* Override Bootstrap 5.3 CSS variables */
             --bs-body-color: #ffffff;
             --bs-body-bg: #1a1a2e;
             --bs-card-color: #ffffff;
@@ -31,578 +29,751 @@
         }
 
         .navbar {
-            background: rgba(0, 0, 0, 0.5) !important;
+            background: rgba(0,0,0,0.5) !important;
             border-bottom: 2px solid var(--primary);
         }
 
-        .nav-link {
-            color: #fff !important;
-            font-weight: 500;
-            transition: all 0.3s;
-        }
-
-        .nav-link:hover, .nav-link.active {
-            color: var(--primary) !important;
-        }
+        .nav-link { color: #fff !important; font-weight: 500; transition: all 0.3s; }
+        .nav-link:hover, .nav-link.active { color: var(--primary) !important; }
 
         .card {
             background: var(--card-bg);
-            border: 1px solid rgba(31, 119, 180, 0.3);
+            border: 1px solid rgba(31,119,180,0.3);
             border-radius: 10px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
         }
 
-        .btn-primary {
-            background: var(--primary) !important;
-            border: none;
-        }
+        .btn-primary  { background: var(--primary) !important; border: none; }
+        .btn-success  { background: var(--success) !important; color: #000 !important; border: none; }
+        .btn-scan-all { background: linear-gradient(135deg, #1f77b4, #00b4d8) !important; border: none; color: #fff !important; }
 
-        .btn-success {
-            background: var(--success) !important;
-            color: #000 !important;
-            border: none;
-        }
-
-        .badge-buy { background: var(--success) !important; color: #000; }
+        .badge-buy  { background: var(--success) !important; color: #000; }
         .badge-sell { background: var(--danger) !important; }
         .badge-hold { background: var(--warning) !important; color: #000; }
+        .badge-error { background: #666 !important; }
 
-        .spinner-border {
-            color: var(--primary);
-        }
+        .spinner-border { color: var(--primary); }
 
         .alert-info {
-            background: rgba(31, 119, 180, 0.2);
+            background: rgba(31,119,180,0.2);
             border: 1px solid var(--primary);
             color: #fff;
         }
 
-        .table {
-            color: #fff;
-        }
-
-        .table thead {
-            border-bottom: 2px solid var(--primary);
-        }
+        .table { color: #fff; }
+        .table thead { border-bottom: 2px solid var(--primary); }
+        .table td, .table th { color: #e0e6f0 !important; }
 
         .form-control, .form-select {
-            background: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.2);
+            background: rgba(255,255,255,0.1);
+            border: 1px solid rgba(255,255,255,0.2);
             color: #fff;
         }
-
-        .form-control::placeholder {
-            color: rgba(255, 255, 255, 0.5);
-        }
-
+        .form-control::placeholder { color: rgba(255,255,255,0.5); }
         .form-control:focus, .form-select:focus {
-            background: rgba(255, 255, 255, 0.15);
+            background: rgba(255,255,255,0.15);
             border-color: var(--primary);
             color: #fff;
-            box-shadow: 0 0 0 0.2rem rgba(31, 119, 180, 0.25);
+            box-shadow: 0 0 0 0.2rem rgba(31,119,180,0.25);
         }
+        .form-select option { background: #16213e; color: #fff; }
 
-        .tab-content {
-            background: transparent;
-            border: none;
-        }
-
-        .tab-pane {
-            min-height: 500px;
-        }
-
-        .loading {
-            display: none;
-        }
+        .tab-content { background: transparent; border: none; }
+        .tab-pane { min-height: 500px; }
+        .loading { display: none; }
 
         .headline {
             padding: 10px;
-            background: rgba(255, 255, 255, 0.05);
+            background: rgba(255,255,255,0.05);
             border-left: 3px solid var(--primary);
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             border-radius: 5px;
+            font-size: 0.9rem;
         }
 
-        /* Force all text inside cards to be visible */
-        .card h5, .card h6 {
-            color: #ffffff !important;
-            font-weight: 600;
-        }
+        .card h5, .card h6 { color: #ffffff !important; font-weight: 600; }
+        .card p, .card li, .card small { color: #e0e6f0 !important; }
+        .card strong { color: #ffffff !important; }
+        .form-label { color: #c8d8f0 !important; font-weight: 500; }
 
-        .card p, .card li, .card small {
-            color: #e0e6f0 !important;
-        }
-
-        .card strong {
-            color: #ffffff !important;
-        }
-
-        .form-label {
-            color: #c8d8f0 !important;
-            font-weight: 500;
-        }
-
-        /* Tab buttons */
-        .nav-tabs .nav-link {
-            color: #a0b4cc !important;
-            background: transparent;
-            border-color: transparent;
-        }
-
+        .nav-tabs .nav-link { color: #a0b4cc !important; background: transparent; border-color: transparent; }
         .nav-tabs .nav-link.active {
             color: #ffffff !important;
             background: var(--card-bg);
-            border-color: rgba(31, 119, 180, 0.5) rgba(31, 119, 180, 0.5) var(--card-bg);
+            border-color: rgba(31,119,180,0.5) rgba(31,119,180,0.5) var(--card-bg);
             font-weight: 600;
         }
 
-        /* Dropdown option text (for browsers that support it) */
-        .form-select option {
-            background: #16213e;
-            color: #fff;
+        /* ── Pillar cards ─────────────────────────── */
+        .pillar-card {
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 10px;
+            padding: 16px;
+            text-align: center;
         }
 
-        /* Table text */
-        .table td, .table th {
-            color: #e0e6f0 !important;
+        .pillar-icon { font-size: 1.8rem; margin-bottom: 6px; }
+
+        .pillar-score {
+            font-size: 1.6rem;
+            font-weight: 700;
+            letter-spacing: 1px;
         }
+
+        .pillar-label { font-size: 0.75rem; color: #90a8c0 !important; text-transform: uppercase; letter-spacing: 1px; }
+
+        .pillar-bar-track {
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            margin: 10px 0;
+            position: relative;
+            overflow: visible;
+        }
+
+        .pillar-bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+
+        .pillar-bar-center {
+            position: absolute;
+            left: 50%;
+            top: -3px;
+            width: 2px;
+            height: 14px;
+            background: rgba(255,255,255,0.3);
+        }
+
+        .pillar-detail { font-size: 0.78rem; color: #a8c0d8 !important; line-height: 1.7; }
+
+        .signal-hero {
+            background: rgba(255,255,255,0.04);
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        .signal-hero .signal-badge {
+            font-size: 1.4rem;
+            padding: 8px 24px;
+            border-radius: 8px;
+            font-weight: 700;
+            letter-spacing: 2px;
+        }
+
+        .combined-bar {
+            height: 12px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 6px;
+            margin: 8px auto;
+            max-width: 300px;
+            position: relative;
+            overflow: visible;
+        }
+
+        .score-pill {
+            font-size: 0.8rem;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+
+        /* Scan table scores */
+        .score-cell { font-size: 0.82rem; font-weight: 600; }
 
         @media (max-width: 768px) {
             body { font-size: 14px; }
             .tab-pane { min-height: 300px; }
+            .pillar-score { font-size: 1.2rem; }
         }
     </style>
 </head>
 <body>
-    <!-- Navigation -->
-    <nav class="navbar navbar-expand-lg navbar-dark">
-        <div class="container-fluid">
-            <a class="navbar-brand fw-bold" href="/">
-                <i class="fas fa-robot"></i> AI Traders
-            </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item"><a class="nav-link" href="#tab-analyze">🔍 Analyze</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#tab-scan">🚀 Scan</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#tab-results">📊 Results</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#tab-qa">💬 Q&A</a></li>
-                    <li class="nav-item"><a class="nav-link" href="#tab-about">📚 About</a></li>
-                </ul>
-            </div>
+
+<nav class="navbar navbar-expand-lg navbar-dark">
+    <div class="container-fluid">
+        <a class="navbar-brand fw-bold" href="/"><i class="fas fa-robot"></i> AI Traders</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ms-auto">
+                <li class="nav-item"><a class="nav-link" href="#tab-analyze">🔍 Analyze</a></li>
+                <li class="nav-item"><a class="nav-link" href="#tab-scan">🚀 Scan</a></li>
+                <li class="nav-item"><a class="nav-link" href="#tab-results">📊 Results</a></li>
+                <li class="nav-item"><a class="nav-link" href="#tab-qa">💬 Q&A</a></li>
+                <li class="nav-item"><a class="nav-link" href="#tab-about">📚 About</a></li>
+            </ul>
         </div>
-    </nav>
+    </div>
+</nav>
 
-    <div class="container-fluid py-4">
-        <!-- Tabs -->
-        <ul class="nav nav-tabs mb-4" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-analyze-btn" data-bs-toggle="tab" data-bs-target="#tab-analyze" type="button">
-                    🔍 Analyze Stock
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-scan-btn" data-bs-toggle="tab" data-bs-target="#tab-scan" type="button">
-                    🚀 Daily Scan
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-results-btn" data-bs-toggle="tab" data-bs-target="#tab-results" type="button">
-                    📊 Results
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-qa-btn" data-bs-toggle="tab" data-bs-target="#tab-qa" type="button">
-                    💬 News Q&A
-                </button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-about-btn" data-bs-toggle="tab" data-bs-target="#tab-about" type="button">
-                    📚 About
-                </button>
-            </li>
-        </ul>
+<div class="container-fluid py-4">
 
-        <div class="tab-content">
-            <!-- TAB 1: ANALYZE STOCK -->
-            <div class="tab-pane fade show active" id="tab-analyze">
-                <div class="row justify-content-center">
-                    <div class="col-lg-10 col-xl-8">
-                        <div class="card p-5">
-                            <h3 class="mb-4 text-center fw-bold">🔍 Analyze Individual Stock</h3>
+    <ul class="nav nav-tabs mb-4" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#tab-analyze" type="button">🔍 Analyze Stock</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-scan" type="button">🚀 Daily Scan</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-results" type="button">📊 Results</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-qa" type="button">💬 News Q&A</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#tab-about" type="button">📚 About</button>
+        </li>
+    </ul>
 
-                            <div class="row mb-4 g-3">
-                                <div class="col-md-6">
-                                    <label class="form-label fs-6">📍 Select Industry</label>
-                                    <select class="form-select form-select-lg" id="industry-select">
-                                        <option value="">Loading...</option>
-                                    </select>
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label fs-6">📈 Select Stock</label>
-                                    <select class="form-select form-select-lg" id="stock-select">
-                                        <option value="">Select industry first</option>
-                                    </select>
+    <div class="tab-content">
+
+        <!-- ═══════════════════════════════════════════
+             TAB 1 — ANALYZE STOCK
+        ═══════════════════════════════════════════ -->
+        <div class="tab-pane fade show active" id="tab-analyze">
+            <div class="row justify-content-center">
+                <div class="col-lg-10 col-xl-8">
+                    <div class="card p-5">
+                        <h3 class="mb-4 text-center fw-bold">🔍 Analyze Individual Stock</h3>
+
+                        <div class="row mb-4 g-3">
+                            <div class="col-md-6">
+                                <label class="form-label fs-6">📍 Select Industry</label>
+                                <select class="form-select form-select-lg" id="industry-select">
+                                    <option value="">Loading...</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label fs-6">📈 Select Stock</label>
+                                <select class="form-select form-select-lg" id="stock-select">
+                                    <option value="">Select industry first</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button class="btn btn-primary btn-lg w-100 mb-4 py-3 fs-5" onclick="analyzeStock()">
+                            <i class="fas fa-search me-2"></i> Analyze Now
+                        </button>
+
+                        <div class="loading text-center" id="analyze-loading">
+                            <div class="spinner-border" role="status"></div>
+                            <p class="mt-2 text-white">Analyzing stock — fetching market data &amp; news…</p>
+                        </div>
+
+                        <!-- Results -->
+                        <div id="analyze-results" style="display:none;">
+                            <hr class="border-secondary mb-4">
+
+                            <!-- Signal hero -->
+                            <div class="signal-hero">
+                                <div class="mb-2 text-white fw-bold fs-5" id="analyze-ticker-label"></div>
+                                <span class="signal-badge badge-hold" id="analyze-signal">-</span>
+                                <div class="mt-3">
+                                    <span class="text-white-50 small">Confidence: </span>
+                                    <span class="text-white fw-bold" id="analyze-confidence">-</span>
+                                    <span class="ms-3 text-white-50 small">Combined: </span>
+                                    <span class="fw-bold" id="analyze-combined">-</span>
                                 </div>
                             </div>
 
-                            <button class="btn btn-primary btn-lg w-100 mb-4 py-3 fs-5" onclick="analyzeStock()">
-                                <i class="fas fa-search me-2"></i> Analyze Now
-                            </button>
+                            <!-- Three Pillars -->
+                            <h6 class="text-center mb-3" style="color:#90a8c0; letter-spacing:2px; font-size:0.75rem; text-transform:uppercase;">3-Pillar Breakdown</h6>
+                            <div class="row g-3 mb-4">
 
-                            <div class="loading text-center" id="analyze-loading">
-                                <div class="spinner-border text-primary" role="status"></div>
-                                <p class="mt-2">Analyzing stock...</p>
-                            </div>
-
-                            <div id="analyze-results" style="display:none;">
-                                <hr class="border-secondary mb-4">
-                                <h5 class="mb-3 text-center">📊 Analysis Results</h5>
-                                <div class="row g-3">
-                                    <div class="col-md-6">
-                                        <p class="fs-6"><strong>Signal:</strong> <span id="analyze-signal" class="badge badge-hold ms-1">-</span></p>
-                                        <p class="fs-6"><strong>Confidence:</strong> <span id="analyze-confidence">-</span></p>
+                                <!-- Pillar 1: Technical -->
+                                <div class="col-md-4">
+                                    <div class="pillar-card">
+                                        <div class="pillar-icon">📊</div>
+                                        <div class="pillar-label">Technical</div>
+                                        <div class="pillar-score" id="p1-score">—</div>
+                                        <div class="pillar-bar-track">
+                                            <div class="pillar-bar-center"></div>
+                                            <div class="pillar-bar-fill" id="p1-bar" style="width:50%"></div>
+                                        </div>
+                                        <div class="pillar-detail" id="p1-detail"></div>
                                     </div>
-                                    <div class="col-md-6">
-                                        <p class="fs-6"><strong>Sentiment:</strong> <span id="analyze-sentiment">-</span></p>
-                                        <p class="fs-6"><strong>Technical:</strong> <span id="analyze-technical">-</span></p>
+                                </div>
+
+                                <!-- Pillar 2: Qualitative -->
+                                <div class="col-md-4">
+                                    <div class="pillar-card">
+                                        <div class="pillar-icon">📰</div>
+                                        <div class="pillar-label">Qualitative</div>
+                                        <div class="pillar-score" id="p2-score">—</div>
+                                        <div class="pillar-bar-track">
+                                            <div class="pillar-bar-center"></div>
+                                            <div class="pillar-bar-fill" id="p2-bar" style="width:50%"></div>
+                                        </div>
+                                        <div class="pillar-detail" id="p2-detail"></div>
                                     </div>
                                 </div>
-                                <div id="analyze-headlines" class="mt-3"></div>
+
+                                <!-- Pillar 3: Quantitative -->
+                                <div class="col-md-4">
+                                    <div class="pillar-card">
+                                        <div class="pillar-icon">💹</div>
+                                        <div class="pillar-label">Quantitative</div>
+                                        <div class="pillar-score" id="p3-score">—</div>
+                                        <div class="pillar-bar-track">
+                                            <div class="pillar-bar-center"></div>
+                                            <div class="pillar-bar-fill" id="p3-bar" style="width:50%"></div>
+                                        </div>
+                                        <div class="pillar-detail" id="p3-detail"></div>
+                                    </div>
+                                </div>
                             </div>
+
+                            <!-- Headlines -->
+                            <h6 class="mb-3">📰 Top Headlines</h6>
+                            <div id="analyze-headlines"></div>
                         </div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <!-- TAB 2: DAILY SCAN -->
-            <div class="tab-pane fade" id="tab-scan">
-                <div class="card p-4">
-                    <h5 class="mb-4">🚀 Daily Scan - Multiple Stocks</h5>
-                    
-                    <div class="mb-3">
-                        <label class="form-label">📌 Enter Tickers (comma-separated)</label>
-                        <textarea class="form-control" id="scan-tickers" rows="3" placeholder="AAPL, MSFT, TSLA, NVDA, ORCL"></textarea>
+        <!-- ═══════════════════════════════════════════
+             TAB 2 — DAILY SCAN
+        ═══════════════════════════════════════════ -->
+        <div class="tab-pane fade" id="tab-scan">
+            <div class="card p-4">
+                <h5 class="mb-1">🚀 Daily Scan</h5>
+                <p class="small mb-4" style="color:#90a8c0;">Scan every stock across all industries in one click, or enter custom tickers below.</p>
+
+                <!-- Scan All button -->
+                <button class="btn btn-scan-all btn-lg w-100 mb-3 py-3 fs-5" onclick="scanAll()">
+                    <i class="fas fa-globe me-2"></i> Scan All Stocks
+                    <span class="badge bg-white text-dark ms-2 small">28 tickers</span>
+                </button>
+
+                <div class="text-center text-white-50 small mb-3">— or enter custom tickers —</div>
+
+                <div class="mb-3">
+                    <label class="form-label">📌 Custom Tickers (comma-separated)</label>
+                    <textarea class="form-control" id="scan-tickers" rows="2" placeholder="AAPL, MSFT, TSLA, NVDA"></textarea>
+                </div>
+                <button class="btn btn-primary w-100 mb-3" onclick="scanCustom()">
+                    <i class="fas fa-play me-1"></i> Scan Custom
+                </button>
+
+                <div class="loading text-center" id="scan-loading">
+                    <div class="spinner-border" role="status"></div>
+                    <p class="mt-2 text-white" id="scan-loading-msg">Scanning stocks…</p>
+                </div>
+
+                <div id="scan-results" style="display:none;">
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Ticker</th>
+                                    <th>Signal</th>
+                                    <th>Conf.</th>
+                                    <th>Tech 📊</th>
+                                    <th>Qual 📰</th>
+                                    <th>Quant 💹</th>
+                                    <th>Combined</th>
+                                </tr>
+                            </thead>
+                            <tbody id="scan-table-body"></tbody>
+                        </table>
                     </div>
+                </div>
+            </div>
+        </div>
 
-                    <button class="btn btn-success w-100 mb-3" onclick="scanStocks()">
-                        <i class="fas fa-play"></i> Start Scan
+        <!-- ═══════════════════════════════════════════
+             TAB 3 — RESULTS
+        ═══════════════════════════════════════════ -->
+        <div class="tab-pane fade" id="tab-results">
+            <div class="card p-4">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5>📊 Last Scan Results</h5>
+                    <button class="btn btn-sm btn-secondary" onclick="exportExcel()">
+                        <i class="fas fa-download"></i> Export Excel
                     </button>
+                </div>
 
-                    <div class="loading" id="scan-loading">
-                        <div class="spinner-border text-primary" role="status"></div>
-                        <p class="mt-2">Scanning stocks...</p>
-                    </div>
-
-                    <div id="scan-results" style="display:none;">
+                <div id="results-table" style="display:none;">
+                    <div class="table-responsive">
                         <table class="table table-hover">
                             <thead>
                                 <tr>
                                     <th>Ticker</th>
                                     <th>Signal</th>
                                     <th>Confidence</th>
-                                    <th>Sentiment</th>
+                                    <th>Technical</th>
+                                    <th>Qualitative</th>
+                                    <th>Quantitative</th>
+                                    <th>Combined</th>
                                 </tr>
                             </thead>
-                            <tbody id="scan-table-body">
-                            </tbody>
+                            <tbody id="results-tbody"></tbody>
                         </table>
                     </div>
                 </div>
-            </div>
 
-            <!-- TAB 3: RESULTS -->
-            <div class="tab-pane fade" id="tab-results">
-                <div class="card p-4">
-                    <div class="d-flex justify-content-between align-items-center mb-3">
-                        <h5>📊 Results Table</h5>
-                        <button class="btn btn-sm btn-secondary" onclick="exportExcel()">
-                            <i class="fas fa-download"></i> Export Excel
+                <div id="no-results" class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> No results yet. Run a Daily Scan first!
+                </div>
+            </div>
+        </div>
+
+        <!-- ═══════════════════════════════════════════
+             TAB 4 — NEWS Q&A
+        ═══════════════════════════════════════════ -->
+        <div class="tab-pane fade" id="tab-qa">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="card p-4 mb-3">
+                        <h5 class="mb-4">🎯 Ask a Market Question</h5>
+                        <textarea class="form-control mb-3" id="qa-question" rows="3"
+                            placeholder="e.g., What's the market sentiment on AI stocks? Is the Fed cutting rates?"></textarea>
+                        <button class="btn btn-primary w-100" onclick="askQuestion()">
+                            <i class="fas fa-search me-1"></i> Search &amp; Analyze
                         </button>
                     </div>
-                    
-                    <div id="results-table" style="display:none;">
-                        <div class="table-responsive">
-                            <table class="table table-hover">
-                                <thead>
-                                    <tr>
-                                        <th>Ticker</th>
-                                        <th>Signal</th>
-                                        <th>Confidence</th>
-                                        <th>Sentiment</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="results-tbody">
-                                </tbody>
-                            </table>
-                        </div>
+
+                    <div class="loading" id="qa-loading">
+                        <div class="spinner-border" role="status"></div>
+                        <p class="mt-2 text-white">Searching news and generating answer…</p>
                     </div>
 
-                    <div id="no-results" class="alert alert-info">
-                        <i class="fas fa-info-circle"></i> No results available. Run a Daily Scan first!
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB 4: NEWS Q&A -->
-            <div class="tab-pane fade" id="tab-qa">
-                <div class="row">
-                    <div class="col-lg-8">
-                        <div class="card p-4 mb-3">
-                            <h5 class="mb-4">🎯 Ask a Question</h5>
-                            <textarea class="form-control mb-3" id="qa-question" rows="3" placeholder="e.g., What's the market sentiment on AI stocks? Is the Fed cutting rates?"></textarea>
-                            <button class="btn btn-primary w-100" onclick="askQuestion()">
-                                <i class="fas fa-search"></i> Search & Analyze
-                            </button>
-                        </div>
-
-                        <div class="loading" id="qa-loading">
-                            <div class="spinner-border text-primary" role="status"></div>
-                            <p class="mt-2">Searching news and generating answer...</p>
-                        </div>
-
-                        <div id="qa-results" style="display:none;" class="card p-4">
-                            <h6>🤖 AI Response</h6>
-                            <div id="qa-answer" class="mt-3"></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- TAB 5: ABOUT -->
-            <div class="tab-pane fade" id="tab-about">
-                <div class="row">
-                    <div class="col-lg-10">
-                        <div class="card p-4">
-                            <h5 class="mb-4">📚 3-Pillar Trading Framework</h5>
-                            
-                            <p>Our system makes BUY/HOLD/SELL decisions by combining <strong>3 fundamental pillars</strong> of analysis:</p>
-
-                            <div class="row mt-4">
-                                <div class="col-md-4">
-                                    <div class="card bg-dark p-3">
-                                        <h6>📊 Technical Analysis</h6>
-                                        <p class="small">
-                                            <strong>RSI:</strong> < 35 = Oversold 🟢 | > 65 = Overbought 🔴<br>
-                                            <strong>MACD:</strong> Bullish/Bearish crosses<br>
-                                            <strong>Volume & ATR:</strong> Strength confirmation
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="card bg-dark p-3">
-                                        <h6>📰 Qualitative Analysis</h6>
-                                        <p class="small">
-                                            <strong>News Sentiment:</strong> Scanned every 30 min<br>
-                                            <strong>Headlines:</strong> 20+ sources tracked<br>
-                                            <strong>Score:</strong> -1 (Bearish) to +1 (Bullish)
-                                        </p>
-                                    </div>
-                                </div>
-                                <div class="col-md-4">
-                                    <div class="card bg-dark p-3">
-                                        <h6>💹 Quantitative Analysis</h6>
-                                        <p class="small">
-                                            <strong>Price Trends:</strong> vs 50/200 SMA<br>
-                                            <strong>Fundamentals:</strong> EPS, growth rate<br>
-                                            <strong>Score:</strong> -1 (Weak) to +1 (Strong)
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <h6 class="mt-4">Decision Logic</h6>
-                            <ul>
-                                <li><strong>🟢 BUY:</strong> Combined score > 0.4</li>
-                                <li><strong>🟡 HOLD:</strong> Score between -0.4 and +0.4</li>
-                                <li><strong>🔴 SELL:</strong> Combined score < -0.4</li>
-                            </ul>
-
-                            <h6 class="mt-4">CrewAI Agents</h6>
-                            <p>4 AI experts analyze each signal:</p>
-                            <ul>
-                                <li>📊 <strong>News Researcher</strong> - Identifies catalysts (10 yrs experience)</li>
-                                <li>🎯 <strong>News Manager</strong> - Synthesizes thesis (20 yrs experience)</li>
-                                <li>📈 <strong>Stock Analyst</strong> - Validates technicals (10 yrs experience)</li>
-                                <li>💼 <strong>Portfolio Manager</strong> - Structures trades (20 yrs experience)</li>
-                            </ul>
-                        </div>
+                    <div id="qa-results" style="display:none;" class="card p-4">
+                        <h6>🤖 AI Response</h6>
+                        <div id="qa-answer" class="mt-3" style="line-height:1.7;"></div>
                     </div>
                 </div>
             </div>
         </div>
+
+        <!-- ═══════════════════════════════════════════
+             TAB 5 — ABOUT
+        ═══════════════════════════════════════════ -->
+        <div class="tab-pane fade" id="tab-about">
+            <div class="row">
+                <div class="col-lg-10">
+                    <div class="card p-4">
+                        <h5 class="mb-4">📚 3-Pillar Trading Framework</h5>
+                        <p>Every BUY/HOLD/SELL decision combines <strong>3 independent pillars</strong>, each scored −1 to +1:</p>
+
+                        <div class="row mt-4">
+                            <div class="col-md-4">
+                                <div class="card p-3" style="background:rgba(255,255,255,0.04);">
+                                    <h6>📊 Technical Analysis</h6>
+                                    <p class="small">
+                                        <strong>RSI:</strong> &lt;30 Oversold 🟢 | &gt;70 Overbought 🔴<br>
+                                        <strong>MACD:</strong> Bullish/Bearish crossover<br>
+                                        <strong>Volume:</strong> &gt;1.5× 20-day avg = conviction<br>
+                                        <strong>SMA:</strong> Golden cross &amp; 200-day position
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card p-3" style="background:rgba(255,255,255,0.04);">
+                                    <h6>📰 Qualitative Analysis</h6>
+                                    <p class="small">
+                                        <strong>News Sentiment:</strong> Live DuckDuckGo scan<br>
+                                        <strong>Headlines:</strong> Multiple sources<br>
+                                        <strong>Score:</strong> −1 (Bearish) → +1 (Bullish)
+                                    </p>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="card p-3" style="background:rgba(255,255,255,0.04);">
+                                    <h6>💹 Quantitative Analysis</h6>
+                                    <p class="small">
+                                        <strong>Earnings Growth:</strong> YoY % (Yahoo Finance)<br>
+                                        <strong>Revenue Growth:</strong> YoY %<br>
+                                        <strong>P/E:</strong> Forward vs Trailing<br>
+                                        <strong>Analyst Target:</strong> Consensus upside
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h6 class="mt-4">Decision Logic</h6>
+                        <ul>
+                            <li><strong>🟢 BUY:</strong> Combined score &gt; +0.35</li>
+                            <li><strong>🟡 HOLD:</strong> Score between −0.35 and +0.35</li>
+                            <li><strong>🔴 SELL:</strong> Combined score &lt; −0.35</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
     </div>
+</div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
 
-    <script>
-        // Load industries on page load
-        document.addEventListener('DOMContentLoaded', function() {
-            loadIndustries();
-            
-            document.getElementById('industry-select').addEventListener('change', function() {
-                loadStocks(this.value);
-            });
+// ── All tickers mirroring backend INDUSTRIES dict ─────────────────────────
+const ALL_TICKERS = [
+    'XOM','CVX','COP','MPC','FANG',
+    'NVDA','MSFT','META','AAPL','TSLA','ORCL',
+    'JPM','BAC','GS','WFC','MS','MA','V',
+    'AMZN','MCD','PG','NKE','SBUX',
+    'GLD','USO','SLV','FCX','DBA'
+];
+
+// ── Helpers ───────────────────────────────────────────────────────────────
+function scoreColor(s) {
+    if (s >  0.3) return '#00ff41';
+    if (s < -0.3) return '#ff0051';
+    return '#ffa500';
+}
+
+function scoreToWidth(s) {
+    return ((s + 1) / 2 * 100).toFixed(1) + '%';
+}
+
+function fmtScore(s) {
+    const n = parseFloat(s) || 0;
+    return (n >= 0 ? '+' : '') + n.toFixed(2);
+}
+
+function scorePill(s) {
+    const n = parseFloat(s) || 0;
+    const color = scoreColor(n);
+    return `<span class="score-pill" style="background:${color}22;color:${color};border:1px solid ${color}44">${fmtScore(n)}</span>`;
+}
+
+function signalBadgeHtml(signal) {
+    const cls = `badge-${(signal || 'hold').toLowerCase()}`;
+    return `<span class="badge ${cls}">${signal || 'N/A'}</span>`;
+}
+
+// ── Page init ─────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    loadIndustries();
+    document.getElementById('industry-select').addEventListener('change', function () {
+        loadStocks(this.value);
+    });
+});
+
+async function loadIndustries() {
+    try {
+        const r = await fetch('/api/industries');
+        const d = await r.json();
+        const sel = document.getElementById('industry-select');
+        sel.innerHTML = '<option value="">Select Industry</option>';
+        d.industries.forEach(i => sel.innerHTML += `<option value="${i}">${i}</option>`);
+    } catch (e) { console.error(e); }
+}
+
+async function loadStocks(industry) {
+    try {
+        const r = await fetch(`/api/stocks/${encodeURIComponent(industry)}`);
+        const d = await r.json();
+        const sel = document.getElementById('stock-select');
+        sel.innerHTML = '<option value="">Select Stock</option>';
+        d.stocks.forEach(s => sel.innerHTML += `<option value="${s}">${s}</option>`);
+    } catch (e) { console.error(e); }
+}
+
+// ── TAB 1: Analyze Stock ──────────────────────────────────────────────────
+async function analyzeStock() {
+    const ticker = document.getElementById('stock-select').value;
+    if (!ticker) { alert('Please select a stock'); return; }
+
+    document.getElementById('analyze-loading').style.display = 'block';
+    document.getElementById('analyze-results').style.display = 'none';
+
+    try {
+        const r = await fetch('/api/analyze-stock', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ticker })
+        });
+        const d = await r.json();
+
+        if (!r.ok || d.error) { alert('Error: ' + (d.error || 'Unknown')); return; }
+
+        const a = d.analysis || {};
+        const signal  = a.signal    ?? 'N/A';
+        const conf    = a.confidence ?? 0;
+        const tech    = a.technical  ?? 0;
+        const qual    = a.qualitative ?? 0;
+        const quant   = a.quantitative ?? 0;
+        const combined= a.combined_score ?? 0;
+        const bk      = a.breakdown || {};
+
+        // Hero
+        document.getElementById('analyze-ticker-label').textContent = ticker;
+        const sigEl = document.getElementById('analyze-signal');
+        sigEl.textContent = signal;
+        sigEl.className = `signal-badge badge-${signal.toLowerCase()}`;
+        document.getElementById('analyze-confidence').textContent = (conf * 100).toFixed(0) + '%';
+        document.getElementById('analyze-combined').innerHTML = `<span style="color:${scoreColor(combined)}">${fmtScore(combined)}</span>`;
+
+        // Pillar 1 — Technical
+        setPillar('p1', tech, [
+            `RSI: ${bk.rsi ?? '—'}`,
+            `MACD: ${(bk.macd ?? 'none').toUpperCase()}`,
+            `Volume: ${bk.volume_ratio ?? '—'}×`,
+            `Golden Cross: ${bk.golden_cross ? 'Yes ✓' : 'No'}`,
+            `Above 200 SMA: ${bk.above_200sma ? 'Yes ✓' : 'No'}`
+        ]);
+
+        // Pillar 2 — Qualitative
+        setPillar('p2', qual, [
+            `Sentiment: ${fmtScore(d.sentiment ?? 0)}`,
+            `Headlines: ${(d.headlines ?? []).length} found`
+        ]);
+
+        // Pillar 3 — Quantitative
+        const eg = bk.earnings_growth != null ? ((bk.earnings_growth * 100).toFixed(1) + '%') : 'N/A';
+        const rg = bk.revenue_growth  != null ? ((bk.revenue_growth  * 100).toFixed(1) + '%') : 'N/A';
+        const at = bk.analyst_target  != null ? ('$' + parseFloat(bk.analyst_target).toFixed(0)) : 'N/A';
+        setPillar('p3', quant, [
+            `Earnings Growth: ${eg}`,
+            `Revenue Growth: ${rg}`,
+            `Analyst Target: ${at}`
+        ]);
+
+        // Headlines
+        let html = '';
+        (d.headlines ?? []).slice(0, 5).forEach(h => {
+            html += `<div class="headline">${h}</div>`;
+        });
+        document.getElementById('analyze-headlines').innerHTML = html || '<p class="text-white-50 small">No headlines available.</p>';
+
+        document.getElementById('analyze-results').style.display = 'block';
+    } catch (e) {
+        alert('Error: ' + e);
+    } finally {
+        document.getElementById('analyze-loading').style.display = 'none';
+    }
+}
+
+function setPillar(id, score, lines) {
+    const color = scoreColor(score);
+    document.getElementById(id + '-score').textContent = fmtScore(score);
+    document.getElementById(id + '-score').style.color = color;
+    document.getElementById(id + '-bar').style.width = scoreToWidth(score);
+    document.getElementById(id + '-bar').style.background = color;
+    document.getElementById(id + '-detail').innerHTML = lines.join('<br>');
+}
+
+// ── TAB 2: Daily Scan ─────────────────────────────────────────────────────
+async function scanAll() {
+    document.getElementById('scan-loading-msg').textContent =
+        `Scanning all ${ALL_TICKERS.length} stocks — this may take a few minutes…`;
+    await runScan(ALL_TICKERS);
+}
+
+async function scanCustom() {
+    const raw = document.getElementById('scan-tickers').value;
+    const tickers = raw.split(',').map(t => t.trim().toUpperCase()).filter(Boolean);
+    if (!tickers.length) { alert('Please enter at least one ticker'); return; }
+    document.getElementById('scan-loading-msg').textContent = `Scanning ${tickers.length} stocks…`;
+    await runScan(tickers);
+}
+
+async function runScan(tickers) {
+    document.getElementById('scan-loading').style.display = 'block';
+    document.getElementById('scan-results').style.display = 'none';
+
+    try {
+        const r = await fetch('/api/daily-scan', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tickers })
+        });
+        const d = await r.json();
+
+        if (!r.ok || d.error) { alert('Error: ' + (d.error || 'Unknown')); return; }
+
+        let tbody = '';
+        d.results.forEach(row => {
+            const signal = row.signal ?? 'ERROR';
+            const conf   = row.confidence != null ? (row.confidence * 100).toFixed(0) + '%' : 'N/A';
+            tbody += `
+                <tr>
+                    <td><strong>${row.ticker}</strong></td>
+                    <td>${signalBadgeHtml(signal)}</td>
+                    <td>${conf}</td>
+                    <td class="score-cell">${scorePill(row.technical)}</td>
+                    <td class="score-cell">${scorePill(row.qualitative)}</td>
+                    <td class="score-cell">${scorePill(row.quantitative)}</td>
+                    <td class="score-cell">${scorePill(row.combined_score)}</td>
+                </tr>`;
         });
 
-        async function loadIndustries() {
-            try {
-                const response = await fetch('/api/industries');
-                const data = await response.json();
-                const select = document.getElementById('industry-select');
-                select.innerHTML = '<option value="">Select Industry</option>';
-                data.industries.forEach(industry => {
-                    select.innerHTML += `<option value="${industry}">${industry}</option>`;
-                });
-            } catch (error) {
-                console.error('Error loading industries:', error);
-            }
-        }
+        document.getElementById('scan-table-body').innerHTML = tbody;
+        document.getElementById('scan-results').style.display = 'block';
+    } catch (e) {
+        alert('Scan error: ' + e);
+    } finally {
+        document.getElementById('scan-loading').style.display = 'none';
+    }
+}
 
-        async function loadStocks(industry) {
-            try {
-                const response = await fetch(`/api/stocks/${industry}`);
-                const data = await response.json();
-                const select = document.getElementById('stock-select');
-                select.innerHTML = '<option value="">Select Stock</option>';
-                data.stocks.forEach(stock => {
-                    select.innerHTML += `<option value="${stock}">${stock}</option>`;
-                });
-            } catch (error) {
-                console.error('Error loading stocks:', error);
-            }
-        }
+// ── TAB 3: Results ────────────────────────────────────────────────────────
+async function loadResults() {
+    try {
+        const r = await fetch('/api/results');
+        const d = await r.json();
+        if (d.error || !d.results?.length) return;
 
-        async function analyzeStock() {
-            const ticker = document.getElementById('stock-select').value;
-            if (!ticker) {
-                alert('Please select a stock');
-                return;
-            }
+        let tbody = '';
+        d.results.forEach(row => {
+            tbody += `
+                <tr>
+                    <td><strong>${row.ticker}</strong></td>
+                    <td>${signalBadgeHtml(row.signal)}</td>
+                    <td>${row.confidence != null ? (row.confidence * 100).toFixed(0) + '%' : 'N/A'}</td>
+                    <td>${scorePill(row.technical)}</td>
+                    <td>${scorePill(row.qualitative)}</td>
+                    <td>${scorePill(row.quantitative)}</td>
+                    <td>${scorePill(row.combined_score)}</td>
+                </tr>`;
+        });
+        document.getElementById('results-tbody').innerHTML = tbody;
+        document.getElementById('results-table').style.display = 'block';
+        document.getElementById('no-results').style.display = 'none';
+    } catch (e) { console.error(e); }
+}
 
-            document.getElementById('analyze-loading').style.display = 'block';
-            document.getElementById('analyze-results').style.display = 'none';
+document.querySelector('[data-bs-target="#tab-results"]').addEventListener('click', loadResults);
 
-            try {
-                const response = await fetch('/api/analyze-stock', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ ticker })
-                });
-                const data = await response.json();
+function exportExcel() { window.location.href = '/api/export-excel'; }
 
-                if (!response.ok || data.error) {
-                    alert('Error: ' + (data.error || 'Unknown error'));
-                    return;
-                }
+// ── TAB 4: News Q&A ───────────────────────────────────────────────────────
+async function askQuestion() {
+    const question = document.getElementById('qa-question').value.trim();
+    if (!question) { alert('Please enter a question'); return; }
 
-                const signal = data.analysis?.signal ?? 'N/A';
-                document.getElementById('analyze-signal').textContent = signal;
-                document.getElementById('analyze-signal').className = `badge badge-${signal.toLowerCase()}`;
-                document.getElementById('analyze-confidence').textContent = ((data.analysis?.confidence ?? 0) * 100).toFixed(0) + '%';
-                document.getElementById('analyze-sentiment').textContent = (data.sentiment ?? 0).toFixed(2);
-                document.getElementById('analyze-technical').textContent = (data.analysis?.technical ?? 0).toFixed(2);
+    document.getElementById('qa-loading').style.display = 'block';
+    document.getElementById('qa-results').style.display = 'none';
 
-                // Show headlines
-                let headlinesHtml = '<h6>📰 Top Headlines</h6>';
-                (data.headlines ?? []).slice(0, 5).forEach(h => {
-                    headlinesHtml += `<div class="headline">${h}</div>`;
-                });
-                document.getElementById('analyze-headlines').innerHTML = headlinesHtml;
+    try {
+        const r = await fetch('/api/qa', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ question })
+        });
+        const d = await r.json();
+        if (!r.ok || d.error) { alert('Error: ' + (d.error || 'Unknown')); return; }
 
-                document.getElementById('analyze-results').style.display = 'block';
-            } catch (error) {
-                alert('Error analyzing stock: ' + error);
-            } finally {
-                document.getElementById('analyze-loading').style.display = 'none';
-            }
-        }
+        document.getElementById('qa-answer').innerHTML = (d.answer ?? '').replace(/\n/g, '<br>');
+        document.getElementById('qa-results').style.display = 'block';
+    } catch (e) {
+        alert('Error: ' + e);
+    } finally {
+        document.getElementById('qa-loading').style.display = 'none';
+    }
+}
 
-        async function scanStocks() {
-            const tickersStr = document.getElementById('scan-tickers').value;
-            const tickers = tickersStr.split(',').map(t => t.trim().toUpperCase()).filter(t => t);
-            
-            if (tickers.length === 0) {
-                alert('Please enter at least one ticker');
-                return;
-            }
-
-            document.getElementById('scan-loading').style.display = 'block';
-            document.getElementById('scan-results').style.display = 'none';
-
-            try {
-                const response = await fetch('/api/daily-scan', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ tickers })
-                });
-                const data = await response.json();
-
-                if (!response.ok || data.error) {
-                    alert('Error: ' + (data.error || 'Unknown error'));
-                    return;
-                }
-
-                let tbody = '';
-                data.results.forEach(r => {
-                    const signal = r.signal ?? 'ERROR';
-                    const confidence = r.confidence != null ? (r.confidence * 100).toFixed(0) + '%' : 'N/A';
-                    tbody += `
-                        <tr>
-                            <td>${r.ticker}</td>
-                            <td><span class="badge badge-${signal.toLowerCase()}">${signal}</span></td>
-                            <td>${confidence}</td>
-                            <td>${(r.sentiment ?? 0).toFixed(2)}</td>
-                        </tr>
-                    `;
-                });
-                document.getElementById('scan-table-body').innerHTML = tbody;
-                document.getElementById('scan-results').style.display = 'block';
-            } catch (error) {
-                alert('Error scanning stocks: ' + error);
-            } finally {
-                document.getElementById('scan-loading').style.display = 'none';
-            }
-        }
-
-        async function askQuestion() {
-            const question = document.getElementById('qa-question').value;
-            if (!question) {
-                alert('Please enter a question');
-                return;
-            }
-
-            document.getElementById('qa-loading').style.display = 'block';
-            document.getElementById('qa-results').style.display = 'none';
-
-            try {
-                const response = await fetch('/api/qa', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ question })
-                });
-                const data = await response.json();
-
-                if (!response.ok || data.error) {
-                    alert('Error: ' + (data.error || 'Unknown error'));
-                    return;
-                }
-
-                document.getElementById('qa-answer').innerHTML = (data.answer ?? '').replace(/\n/g, '<br>');
-                document.getElementById('qa-results').style.display = 'block';
-            } catch (error) {
-                alert('Error: ' + error);
-            } finally {
-                document.getElementById('qa-loading').style.display = 'none';
-            }
-        }
-
-        function exportExcel() {
-            window.location.href = '/api/export-excel';
-        }
-    </script>
+</script>
 </body>
 </html>

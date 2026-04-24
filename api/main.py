@@ -164,7 +164,11 @@ def daily_scan():
                     "ticker": ticker,
                     "signal": three_pillar.get("signal", "HOLD"),
                     "confidence": three_pillar.get("confidence", 0),
-                    "sentiment": sentiment
+                    "sentiment": sentiment,
+                    "technical": three_pillar.get("technical", 0),
+                    "qualitative": three_pillar.get("qualitative", 0),
+                    "quantitative": three_pillar.get("quantitative", 0),
+                    "combined_score": three_pillar.get("combined_score", 0)
                 })
             except Exception as e:
                 results.append({
