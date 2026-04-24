@@ -14,9 +14,9 @@ import threading
 class IndicatorCalculator:
     """Calculate technical indicators on OHLCV data using pandas_ta"""
     
-    def __init__(self, config: Dict):
-        self.config = config
-        self.ind_config = config.get('indicators', {})
+    def __init__(self, config: Optional[Dict] = None):
+        self.config = config or {}
+        self.ind_config = self.config.get('indicators', {})
     
     def get_daily_data(self, ticker: str, period: str = '1y') -> Optional[pd.DataFrame]:
         """Fetch daily OHLCV data from yfinance"""

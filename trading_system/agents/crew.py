@@ -13,8 +13,8 @@ import re
 class CFDTradingCrew:
     """Orchestrate CrewAI agents and tasks for trading signal generation"""
     
-    def __init__(self, config: Dict):
-        self.config = config
+    def __init__(self, config: Optional[Dict] = None):
+        self.config = config or {}
         agents_factory = CFDTradingAgents()
         tasks_factory = CFDTradingTasks()
         

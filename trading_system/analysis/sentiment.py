@@ -12,11 +12,11 @@ import yfinance as yf
 class SentimentAnalyzer:
     """Calculate sentiment score from financial headlines using keyword scoring"""
     
-    def __init__(self, config: Dict):
-        self.config = config
+    def __init__(self, config: Optional[Dict] = None):
+        self.config = config or {}
         self.newsapi_key = os.getenv('NEWSAPI_KEY')  # Optional fallback
         self.newsdata_key = os.getenv('NEWSDATA_API_KEY')  # Primary NewsData API
-        self.lookback_hours = config.get('newsapi', {}).get('lookback_hours', 24)
+        self.lookback_hours = self.config.get('newsapi', {}).get('lookback_hours', 24)
         
         # Cache for sentiment scores and headlines (ticker -> (timestamp, score/headlines))
         self._sentiment_cache = {}

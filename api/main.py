@@ -48,7 +48,7 @@ app.config['JSON_SORT_KEYS'] = False
 
 # Initialize system components
 sentiment_analyzer = SentimentAnalyzer(config=CONFIG)
-indicator_calc = IndicatorCalculator()
+indicator_calc = IndicatorCalculator(config=CONFIG)
 crew = CFDTradingCrew(config=CONFIG)
 
 # Store results in memory for session
