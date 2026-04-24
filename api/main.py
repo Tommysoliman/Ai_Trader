@@ -47,7 +47,7 @@ CORS(app)
 app.config['JSON_SORT_KEYS'] = False
 
 # Initialize system components
-sentiment_analyzer = SentimentAnalyzer()
+sentiment_analyzer = SentimentAnalyzer(config=CONFIG)
 indicator_calc = IndicatorCalculator()
 crew = CFDTradingCrew(config=CONFIG)
 
