@@ -32,7 +32,7 @@ from utils.duckduckgo_news import search_for_question
 # Define INDUSTRIES mapping (same as streamlit_app.py)
 INDUSTRIES = {
     "⚡ Energy": ["XOM", "CVX", "COP", "MPC", "FANG"],
-    "💻 Technology": ["NVDA", "MSFT", "META", "AAPL", "TSLA", "ORCL"],
+    "💻 Technology": ["NVDA", "MSFT", "META", "AAPL", "TSLA", "ORCL", "INTC", "GOOGL"],
     "🏦 Finance": ["JPM", "BAC", "GS", "WFC", "MS", "MA", "V"],
     "🛍️ Consumer": ["AMZN", "MCD", "PG", "NKE", "SBUX"],
     "📦 Commodities": ["GLD", "USO", "SLV", "FCX", "DBA"],
