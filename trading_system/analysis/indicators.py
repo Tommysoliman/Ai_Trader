@@ -19,11 +19,7 @@ class IndicatorCalculator:
         self.ind_config = self.config.get('indicators', {})
     
     def get_daily_data(self, ticker: str, period: str = '1y') -> Optional[pd.DataFrame]:
-        """Fetch daily OHLCV data — Alpha Vantage for EGX (.CA), yfinance for everything else"""
-        if ticker.endswith(".CA"):
-            from utils.alpha_vantage import get_daily_data as av_data
-            return av_data(ticker)
-
+        """Fetch daily OHLCV data from yfinance"""
         try:
             data = yf.download(ticker, period=period, interval='1d', progress=False)
             if data is None or len(data) == 0:
@@ -318,13 +314,10 @@ class IndicatorCalculator:
 
 def get_fundamentals(ticker: str) -> Dict:
     """
-    Fetch fundamental financial data.
-    Uses Alpha Vantage for EGX (.CA) tickers, Yahoo Finance for all others.
+    Fetch fundamental financial data from Yahoo Finance.
+    Returns earnings growth, revenue growth, P/E ratios, ROE, profit margin.
+    All values default to None if unavailable (e.g. ETFs, no analyst coverage).
     """
-    if ticker.endswith(".CA"):
-        from utils.alpha_vantage import get_fundamentals as av_fundamentals
-        return av_fundamentals(ticker)
-
     try:
         info = yf.Ticker(ticker).info
         return {
