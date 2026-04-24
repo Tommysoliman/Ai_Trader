@@ -15,14 +15,14 @@ class DuckDuckGoNewsSearcher:
     def __init__(self):
         self.max_results = 10
 
-    def search_news(self, query: str, num_results: int = 10) -> list:
+    def search_news(self, query: str, num_results: int = 10, region: str = "us-en") -> list:
         """Search DuckDuckGo for recent news matching the query."""
         try:
             logger.info(f"Searching DuckDuckGo for: {query}")
             with DDGS() as ddgs:
                 raw = ddgs.news(
                     keywords=query,
-                    region="us-en",
+                    region=region,
                     safesearch="off",
                     timelimit="m",
                     max_results=num_results

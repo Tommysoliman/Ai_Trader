@@ -9,9 +9,19 @@ from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import yfinance as yf
 
+EGYPT_STOCK_NAMES = {
+    "HRHO.CA": "Heliopolis Housing",
+    "BTFH.CA": "Beltone Financial",
+    "SWDY.CA": "El Sewedy Electric",
+    "MOIL.CA": "MOIL Egypt",
+    "CCAP.CA": "Cairo Capital Brokerage",
+    "COMI.CA": "Commercial International Bank Egypt",
+}
+
+
 class SentimentAnalyzer:
     """Calculate sentiment score from financial headlines using keyword scoring"""
-    
+
     def __init__(self, config: Optional[Dict] = None):
         self.config = config or {}
         self.newsapi_key = os.getenv('NEWSAPI_KEY')  # Optional fallback
@@ -38,9 +48,32 @@ class SentimentAnalyzer:
             'fraud', 'risk', 'delay', 'recall', 'bankruptcy'
         ]
     
+    def _fetch_egypt_headlines(self, ticker: str) -> Optional[List[Dict]]:
+        """Fetch news for EGX stocks via DuckDuckGo using company name + Egypt as query."""
+        try:
+            from utils.duckduckgo_news import get_searcher
+            company = EGYPT_STOCK_NAMES.get(ticker, ticker.replace(".CA", ""))
+            query = f"{company} Egypt stock news"
+            print(f"📡 Fetching Egypt news via DuckDuckGo: {query}")
+            searcher = get_searcher()
+            articles = searcher.search_news(query, num_results=15, region="wt-wt")
+            if articles:
+                print(f"✅ Got {len(articles)} headlines for {ticker} ({company})")
+                return [
+                    {"title": a["title"], "description": a.get("body", ""), "url": a.get("url", ""), "publishedAt": a.get("date", "")}
+                    for a in articles
+                ]
+        except Exception as e:
+            print(f"⚠️  Egypt DuckDuckGo fetch failed for {ticker}: {e}")
+        return None
+
     def fetch_headlines(self, ticker: str) -> Optional[List[Dict]]:
         """Fetch news for a ticker from yfinance (primary), NewsData API (secondary), or NewsAPI (fallback)"""
-        
+
+        # Egyptian stocks: use DuckDuckGo by company name — yfinance has no EGX news
+        if ticker.endswith(".CA"):
+            return self._fetch_egypt_headlines(ticker)
+
         # Try yfinance first (most reliable for stock news)
         try:
             print(f"📡 Fetching news from yfinance for {ticker}...")
