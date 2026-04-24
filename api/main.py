@@ -35,7 +35,8 @@ INDUSTRIES = {
     "💻 Technology": ["NVDA", "MSFT", "META", "AAPL", "TSLA", "ORCL"],
     "🏦 Finance": ["JPM", "BAC", "GS", "WFC", "MS", "MA", "V"],
     "🛍️ Consumer": ["AMZN", "MCD", "PG", "NKE", "SBUX"],
-    "📦 Commodities": ["GLD", "USO", "SLV", "FCX", "DBA"]
+    "📦 Commodities": ["GLD", "USO", "SLV", "FCX", "DBA"],
+    "🇪🇬 Egypt": ["HRHO", "BTFH", "SWDY", "MOIL", "CCAP", "COMI", "CBKD", "CIBEY"]
 }
 
 # Default config (can be empty for now)

@@ -1,0 +1,17 @@
+{
+  "name": "AI Traders",
+  "short_name": "AI Traders",
+  "description": "AI-powered trading signal system",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1f77b4",
+  "icons": [
+    {
+      "src": "/static/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
