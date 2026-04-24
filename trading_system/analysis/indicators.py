@@ -251,14 +251,23 @@ class IndicatorCalculator:
             
             # Determine if price is above/below 200 SMA
             above_200sma = current_price > sma_200_current if sma_200_current > 0 else True
-            
+            above_50sma  = current_price > sma_50_current  if sma_50_current  > 0 else True
+
+            # Golden cross / death cross (SMA-50 vs SMA-200)
+            golden_cross = sma_50_current > sma_200_current if sma_200_current > 0 else False
+
             # Check signal conditions
             rsi_bullish = rsi_current < self.ind_config.get('rsi_bullish_threshold', 45)
             rsi_bearish = rsi_current > self.ind_config.get('rsi_bearish_threshold', 58)
-            
+
             # Calculate price change percentage
             price_change_pct = ((current_price - df['Close'].iloc[-2]) / df['Close'].iloc[-2] * 100) if len(df) > 1 else 0
-            
+
+            # Volume ratio: today vs 20-day average (>1.5 = elevated volume)
+            latest_volume = int(df['Volume'].iloc[-1]) if not pd.isna(df['Volume'].iloc[-1]) else 0
+            avg_volume_20 = float(df['Volume'].tail(20).mean()) if len(df) >= 20 else float(latest_volume)
+            volume_ratio = round(latest_volume / avg_volume_20, 2) if avg_volume_20 > 0 else 1.0
+
             return {
                 'ticker': ticker,
                 'current_price': round(current_price, 2),
@@ -268,11 +277,15 @@ class IndicatorCalculator:
                 'sma_50': round(sma_50_current, 2),
                 'macd_cross': macd_cross,
                 'above_200sma': bool(above_200sma),
+                'above_50sma': bool(above_50sma),
+                'golden_cross': bool(golden_cross),
                 'rsi_bullish_condition': bool(rsi_bullish),
                 'rsi_bearish_condition': bool(rsi_bearish),
-                'latest_volume': int(df['Volume'].iloc[-1]) if not pd.isna(df['Volume'].iloc[-1]) else 0,
+                'latest_volume': latest_volume,
+                'avg_volume_20d': int(avg_volume_20),
+                'volume_ratio': volume_ratio,
                 'price_change_pct': round(price_change_pct, 2),
-                'dataframe': df  # For later reference
+                'dataframe': df
             }
         
         except Exception as e:
@@ -297,6 +310,33 @@ class IndicatorCalculator:
         except Exception as e:
             print(f"Error checking entry zone for {ticker}: {e}")
             return False, 0.0
+
+
+def get_fundamentals(ticker: str) -> Dict:
+    """
+    Fetch fundamental financial data from Yahoo Finance.
+    Returns earnings growth, revenue growth, P/E ratios, ROE, profit margin.
+    All values default to None if unavailable (e.g. ETFs, no analyst coverage).
+    """
+    try:
+        info = yf.Ticker(ticker).info
+        return {
+            'earnings_growth':  info.get('earningsGrowth'),    # e.g. 0.25 = 25% YoY
+            'revenue_growth':   info.get('revenueGrowth'),     # e.g. 0.12 = 12% YoY
+            'trailing_pe':      info.get('trailingPE'),        # trailing 12m P/E
+            'forward_pe':       info.get('forwardPE'),         # forward P/E
+            'roe':              info.get('returnOnEquity'),    # return on equity
+            'profit_margin':    info.get('profitMargins'),     # net profit margin
+            'debt_to_equity':   info.get('debtToEquity'),      # leverage ratio
+            'analyst_target':   info.get('targetMeanPrice'),   # consensus target
+            'recommendation':   info.get('recommendationKey'), # e.g. 'buy', 'hold'
+        }
+    except Exception as e:
+        print(f"Warning: could not fetch fundamentals for {ticker}: {e}")
+        return {k: None for k in [
+            'earnings_growth', 'revenue_growth', 'trailing_pe', 'forward_pe',
+            'roe', 'profit_margin', 'debt_to_equity', 'analyst_target', 'recommendation'
+        ]}
 
 
 def create_indicator_context(ticker_data: Dict) -> str:

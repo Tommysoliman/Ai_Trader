@@ -25,7 +25,7 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import trading system modules
 from analysis.sentiment import SentimentAnalyzer
-from analysis.indicators import IndicatorCalculator
+from analysis.indicators import IndicatorCalculator, get_fundamentals
 from agents.crew import CFDTradingCrew
 from utils.duckduckgo_news import search_for_question
 
@@ -103,19 +103,25 @@ def analyze_stock():
         if indicators is None:
             return jsonify({"error": f"Could not fetch market data for {ticker}. Check the ticker symbol is valid."}), 400
 
+        # Fetch fundamentals (earnings growth, P/E, revenue growth, etc.)
+        fundamentals = get_fundamentals(ticker)
+
         # Run 3-pillar analysis
         three_pillar = calculate_three_pillars(
             ticker=ticker,
             indicators_data=indicators,
             sentiment_score=sentiment_score,
-            headlines=headlines
+            headlines=headlines,
+            fundamentals=fundamentals
         )
-        
+
+        safe_indicators = {k: v for k, v in indicators.items() if k != 'dataframe'}
         return jsonify({
             "ticker": ticker,
             "sentiment": sentiment_score,
             "headlines": headlines,
-            "indicators": indicators,
+            "indicators": safe_indicators,
+            "fundamentals": fundamentals,
             "analysis": three_pillar
         })
     
@@ -145,11 +151,13 @@ def daily_scan():
                     results.append({"ticker": ticker, "signal": "ERROR", "error": "No market data"})
                     continue
 
+                fundamentals = get_fundamentals(ticker)
                 three_pillar = calculate_three_pillars(
                     ticker=ticker,
                     indicators_data=indicators,
                     sentiment_score=sentiment,
-                    headlines=headlines
+                    headlines=headlines,
+                    fundamentals=fundamentals
                 )
 
                 results.append({
@@ -319,63 +327,137 @@ def get_framework():
 
 
 # ========== HELPER FUNCTIONS ==========
-def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines):
-    """Calculate 3-pillar score (same logic as Streamlit app)"""
+def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines, fundamentals=None):
+    """
+    3-Pillar scoring model (-1 to +1 per pillar):
+
+    Pillar 1 — TECHNICAL  : RSI, MACD cross, Volume surge, SMA alignment
+    Pillar 2 — QUALITATIVE: News sentiment score from headlines
+    Pillar 3 — QUANTITATIVE: Earnings growth, revenue growth, P/E, ROE, analyst target
+    """
     if indicators_data is None:
         return {"signal": "HOLD", "confidence": 0.0, "technical": 0.0,
                 "qualitative": 0.0, "quantitative": 0.0, "combined_score": 0.0}
 
-    # Technical Pillar (-1 to +1)
+    # ── PILLAR 1: TECHNICAL ──────────────────────────────────────────────────
+    technical_score = 0.0
+
+    # RSI (weight: 0.35)
     rsi = indicators_data.get('rsi', 50)
-    technical_score = 0
-    
-    if rsi < 35:
-        technical_score += 0.4  # Oversold
-    elif rsi > 65:
-        technical_score -= 0.4  # Overbought
-    else:
-        technical_score += 0.1
-    
+    if rsi < 30:
+        technical_score += 0.35       # strongly oversold → bullish
+    elif rsi < 45:
+        technical_score += 0.20       # mildly oversold
+    elif rsi > 70:
+        technical_score -= 0.35       # strongly overbought → bearish
+    elif rsi > 58:
+        technical_score -= 0.20       # mildly overbought
+
+    # MACD cross (weight: 0.25)
     if indicators_data.get('macd_cross') == 'bullish':
-        technical_score += 0.3
+        technical_score += 0.25
     elif indicators_data.get('macd_cross') == 'bearish':
-        technical_score -= 0.3
-    
-    technical_score = max(-1, min(1, technical_score))
-    
-    # Qualitative Pillar (sentiment)
-    qualitative_score = sentiment_score
-    
-    # Quantitative Pillar
-    quantitative_score = 0
-    if indicators_data.get('above_200sma'):
-        quantitative_score += 0.25
-    else:
-        quantitative_score -= 0.25
-    
-    quantitative_score = max(-1, min(1, quantitative_score))
-    
-    # Combined score
-    combined_score = (technical_score + qualitative_score + quantitative_score) / 3
-    
-    # Decision logic
-    if combined_score > 0.4:
+        technical_score -= 0.25
+
+    # Volume surge — above 1.5× 20-day average = conviction (weight: 0.20)
+    volume_ratio = indicators_data.get('volume_ratio', 1.0)
+    if volume_ratio >= 1.5:
+        technical_score += 0.20       # high volume confirms move
+    elif volume_ratio <= 0.6:
+        technical_score -= 0.10       # low volume = weak conviction
+
+    # SMA alignment (weight: 0.20)
+    if indicators_data.get('golden_cross'):           # SMA-50 > SMA-200
+        technical_score += 0.10
+    if indicators_data.get('above_200sma'):           # price above long-term trend
+        technical_score += 0.10
+    if not indicators_data.get('above_200sma'):
+        technical_score -= 0.10
+    if not indicators_data.get('golden_cross'):
+        technical_score -= 0.05
+
+    technical_score = max(-1.0, min(1.0, technical_score))
+
+    # ── PILLAR 2: QUALITATIVE (news sentiment) ───────────────────────────────
+    qualitative_score = max(-1.0, min(1.0, float(sentiment_score or 0.0)))
+
+    # ── PILLAR 3: QUANTITATIVE (financial performance) ───────────────────────
+    quantitative_score = 0.0
+    fundamentals = fundamentals or {}
+
+    # Earnings growth (weight: 0.35)
+    eg = fundamentals.get('earnings_growth')
+    if eg is not None:
+        if eg > 0.20:
+            quantitative_score += 0.35    # strong growth > 20%
+        elif eg > 0.05:
+            quantitative_score += 0.15    # moderate growth
+        elif eg < 0:
+            quantitative_score -= 0.35    # earnings declining
+
+    # Revenue growth (weight: 0.25)
+    rg = fundamentals.get('revenue_growth')
+    if rg is not None:
+        if rg > 0.15:
+            quantitative_score += 0.25
+        elif rg > 0.0:
+            quantitative_score += 0.10
+        elif rg < 0:
+            quantitative_score -= 0.25
+
+    # P/E vs forward P/E — forward < trailing means improving earnings (weight: 0.20)
+    trailing_pe = fundamentals.get('trailing_pe')
+    forward_pe  = fundamentals.get('forward_pe')
+    if trailing_pe and forward_pe and trailing_pe > 0 and forward_pe > 0:
+        if forward_pe < trailing_pe * 0.9:
+            quantitative_score += 0.20    # earnings expected to improve
+        elif forward_pe > trailing_pe * 1.1:
+            quantitative_score -= 0.10    # earnings expected to worsen
+
+    # Analyst consensus target vs current price (weight: 0.20)
+    target = fundamentals.get('analyst_target')
+    price  = indicators_data.get('current_price', 0)
+    if target and price and price > 0:
+        upside = (target - price) / price
+        if upside > 0.15:
+            quantitative_score += 0.20    # >15% analyst upside
+        elif upside > 0.05:
+            quantitative_score += 0.10
+        elif upside < -0.05:
+            quantitative_score -= 0.20    # analysts see downside
+
+    quantitative_score = max(-1.0, min(1.0, quantitative_score))
+
+    # ── COMBINED SCORE & SIGNAL ───────────────────────────────────────────────
+    combined_score = (technical_score + qualitative_score + quantitative_score) / 3.0
+
+    if combined_score > 0.35:
         signal = "BUY"
-        confidence = min(0.95, 0.60 + (combined_score - 0.4) * 0.5)
-    elif combined_score < -0.4:
+        confidence = min(0.95, 0.60 + (combined_score - 0.35) * 0.6)
+    elif combined_score < -0.35:
         signal = "SELL"
-        confidence = min(0.95, 0.60 + (abs(combined_score) - 0.4) * 0.5)
+        confidence = min(0.95, 0.60 + (abs(combined_score) - 0.35) * 0.6)
     else:
         signal = "HOLD"
-        confidence = 0.30 + (abs(combined_score) * 1.0)
-    
+        confidence = 0.30 + abs(combined_score)
+
     return {
         "signal": signal,
-        "confidence": confidence,
-        "technical": technical_score,
-        "qualitative": qualitative_score,
-        "quantitative": quantitative_score,
-        "combined_score": combined_score
+        "confidence": round(confidence, 3),
+        "technical": round(technical_score, 3),
+        "qualitative": round(qualitative_score, 3),
+        "quantitative": round(quantitative_score, 3),
+        "combined_score": round(combined_score, 3),
+        "breakdown": {
+            "rsi": rsi,
+            "macd": indicators_data.get('macd_cross', 'none'),
+            "volume_ratio": volume_ratio,
+            "golden_cross": indicators_data.get('golden_cross', False),
+            "above_200sma": indicators_data.get('above_200sma', False),
+            "earnings_growth": eg,
+            "revenue_growth": rg,
+            "analyst_target": target,
+        }
     }
 
 
