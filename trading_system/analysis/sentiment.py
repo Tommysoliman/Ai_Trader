@@ -1,6 +1,6 @@
 """
-Sentiment Analysis using Keyword-Based Scoring
-Pulls headlines from yfinance and scores them without external libraries
+Sentiment Analysis using LLM (OpenAI) scoring with keyword fallback.
+Pulls headlines from yfinance and scores them via gpt-4o-mini.
 """
 
 import os
@@ -8,6 +8,12 @@ import requests
 from typing import Dict, List, Optional
 from datetime import datetime, timedelta
 import yfinance as yf
+
+try:
+    from openai import OpenAI
+    _openai_available = True
+except ImportError:
+    _openai_available = False
 
 EGYPT_STOCK_NAMES = {
     "HRHO.CA": "Heliopolis Housing",
@@ -26,6 +32,7 @@ class SentimentAnalyzer:
         self.config = config or {}
         self.newsapi_key = os.getenv('NEWSAPI_KEY')  # Optional fallback
         self.newsdata_key = os.getenv('NEWSDATA_API_KEY')  # Primary NewsData API
+        self.openai_key = os.getenv('OPENAI_API_KEY')
         self.lookback_hours = self.config.get('newsapi', {}).get('lookback_hours', 24)
         
         # Cache for sentiment scores and headlines (ticker -> (timestamp, score/headlines))
@@ -224,6 +231,44 @@ class SentimentAnalyzer:
         """Store value in cache with timestamp"""
         cache_dict[ticker] = (datetime.now(), value)
     
+    def _score_with_llm(self, ticker: str, articles: List[Dict]) -> Optional[float]:
+        """Score headlines using OpenAI gpt-4o-mini. Returns float or None on failure."""
+        if not _openai_available or not self.openai_key:
+            return None
+        try:
+            headlines = []
+            for a in articles[:20]:
+                title = a.get('title', '')
+                desc = a.get('description', '') or ''
+                text = f"{title} {desc}".strip()
+                if text:
+                    headlines.append(text)
+            if not headlines:
+                return None
+
+            numbered = "\n".join(f"{i+1}. {h}" for i, h in enumerate(headlines))
+            prompt = (
+                f"You are a financial sentiment analyst. "
+                f"Rate the overall market sentiment for {ticker} based on these recent news headlines. "
+                f"Return ONLY a single number between -1.0 (very bearish) and +1.0 (very bullish), "
+                f"with 0.0 being neutral. No explanation, just the number.\n\n"
+                f"Headlines:\n{numbered}"
+            )
+
+            client = OpenAI(api_key=self.openai_key)
+            response = client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=10,
+                temperature=0
+            )
+            raw = response.choices[0].message.content.strip()
+            score = float(raw)
+            return round(max(-1.0, min(1.0, score)), 2)
+        except Exception as e:
+            print(f"⚠️  LLM sentiment scoring failed for {ticker}: {e}")
+            return None
+
     def calculate_sentiment_score(self, ticker: str) -> float:
         """Calculate aggregate sentiment score for a ticker (-1.0 to +1.0)
         Returns: aggregated sentiment score, or 0.0 if no articles found
@@ -242,35 +287,32 @@ class SentimentAnalyzer:
             self._set_cache(self._sentiment_cache, ticker, 0.0)
             return 0.0
         
+        # Try LLM scoring first
+        llm_score = self._score_with_llm(ticker, articles)
+        if llm_score is not None:
+            print(f"NEWS: {ticker}: {len(articles)} articles, LLM sentiment = {llm_score:.2f}")
+            self._set_cache(self._sentiment_cache, ticker, llm_score)
+            return llm_score
+
+        # Keyword fallback
         try:
             scores = []
-            
             for article in articles:
-                # Combine title and description for scoring
                 title = article.get('title', '')
                 description = article.get('description', '') or ''
-                
                 headline_text = f"{title} {description}"
-                
                 if headline_text.strip():
-                    score = self.score_headline(headline_text)
-                    scores.append(score)
-            
+                    scores.append(self.score_headline(headline_text))
+
             if not scores:
                 self._set_cache(self._sentiment_cache, ticker, 0.0)
                 return 0.0
-            
-            # Average sentiment across all articles
-            aggregate_score = sum(scores) / len(scores)
-            aggregate_score = round(aggregate_score, 2)
-            
-            print(f"NEWS: {ticker}: Found {len(articles)} articles, sentiment = {aggregate_score:.2f}")
-            
-            # Cache the result
+
+            aggregate_score = round(sum(scores) / len(scores), 2)
+            print(f"NEWS: {ticker}: {len(articles)} articles, keyword sentiment = {aggregate_score:.2f}")
             self._set_cache(self._sentiment_cache, ticker, aggregate_score)
-            
             return aggregate_score
-        
+
         except Exception as e:
             print(f"Error calculating sentiment for {ticker}: {e}")
             return 0.0
