@@ -461,7 +461,7 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
     quantitative_score = max(-1.0, min(1.0, quantitative_score))
 
     # ── COMBINED SCORE & SIGNAL ───────────────────────────────────────────────
-    combined_score = (technical_score + qualitative_score + quantitative_score) / 3.0
+    combined_score = (technical_score * 0.5) + (qualitative_score * 0.3) + (quantitative_score * 0.2)
 
     if combined_score > 0.35:
         signal = "BUY"
