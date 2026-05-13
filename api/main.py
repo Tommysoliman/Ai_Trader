@@ -212,6 +212,7 @@ def _analyze_one(ticker: str) -> dict:
             "technical":     three_pillar.get("technical", 0),
             "qualitative":   three_pillar.get("qualitative", 0),
             "quantitative":  three_pillar.get("quantitative", 0),
+            "ml_score":      three_pillar.get("ml_score", 0),
             "combined_score": three_pillar.get("combined_score", 0),
             "signal_source": three_pillar.get("signal_source", "rule-based only"),
             "ml":            three_pillar.get("ml", {}),
