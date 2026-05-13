@@ -491,49 +491,76 @@
             <div class="row">
                 <div class="col-lg-10">
                     <div class="card p-4">
-                        <h5 class="mb-4">📚 3-Pillar Trading Framework</h5>
-                        <p>Every BUY/HOLD/SELL decision combines <strong>3 independent pillars</strong>, each scored −1 to +1:</p>
+                        <h5 class="mb-4">📚 4-Pillar Trading Framework</h5>
+                        <p>Every signal combines <strong>4 independent pillars</strong>, each scored −1 to +1. The final score determines the signal.</p>
 
                         <div class="row mt-4">
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="card p-3" style="background:rgba(255,255,255,0.04);">
-                                    <h6>📊 Technical Analysis</h6>
+                                    <h6>📊 Technical <span class="text-white-50 small">(35%)</span></h6>
                                     <p class="small">
-                                        <strong>RSI:</strong> &lt;30 Oversold 🟢 | &gt;70 Overbought 🔴<br>
-                                        <strong>MACD:</strong> Bullish/Bearish crossover<br>
-                                        <strong>Volume:</strong> &gt;1.5× 20-day avg = conviction<br>
-                                        <strong>SMA:</strong> Golden cross &amp; 200-day position
+                                        <strong>RSI:</strong> Oversold / Overbought / Momentum<br>
+                                        <strong>MACD:</strong> Bullish / Bearish crossover<br>
+                                        <strong>Volume:</strong> &gt;1.5× avg = conviction<br>
+                                        <strong>SMA:</strong> Golden cross &amp; 200-day position<br>
+                                        <strong>ATR:</strong> Volatility expansion<br>
+                                        <strong>Sector RS:</strong> Outperforming sector ETF
                                     </p>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="card p-3" style="background:rgba(255,255,255,0.04);">
-                                    <h6>📰 Qualitative Analysis</h6>
+                                    <h6>📰 Qualitative <span class="text-white-50 small">(10%)</span></h6>
                                     <p class="small">
-                                        <strong>News Sentiment:</strong> Live DuckDuckGo scan<br>
-                                        <strong>Headlines:</strong> Multiple sources<br>
-                                        <strong>Score:</strong> −1 (Bearish) → +1 (Bullish)
+                                        <strong>News Sentiment:</strong> Scored by OpenAI<br>
+                                        <strong>Source:</strong> Yahoo Finance headlines<br>
+                                        <strong>Score:</strong> −1 (Bearish) → +1 (Bullish)<br>
+                                        <strong>Cache:</strong> Refreshed every 30 min
                                     </p>
                                 </div>
                             </div>
-                            <div class="col-md-4">
+                            <div class="col-md-3">
                                 <div class="card p-3" style="background:rgba(255,255,255,0.04);">
-                                    <h6>💹 Quantitative Analysis</h6>
+                                    <h6>💹 Quantitative <span class="text-white-50 small">(20%)</span></h6>
                                     <p class="small">
-                                        <strong>Earnings Growth:</strong> YoY % (Yahoo Finance)<br>
+                                        <strong>Earnings Growth:</strong> YoY %<br>
                                         <strong>Revenue Growth:</strong> YoY %<br>
                                         <strong>P/E:</strong> Forward vs Trailing<br>
                                         <strong>Analyst Target:</strong> Consensus upside
                                     </p>
                                 </div>
                             </div>
+                            <div class="col-md-3">
+                                <div class="card p-3" style="background:rgba(255,255,255,0.04);">
+                                    <h6>🤖 ML Model <span class="text-white-50 small">(35%)</span></h6>
+                                    <p class="small">
+                                        <strong>Model:</strong> Random Forest (100 trees)<br>
+                                        <strong>Training:</strong> 2 years of daily data<br>
+                                        <strong>Target:</strong> Price up &gt;2% in 10 days<br>
+                                        <strong>Features:</strong> RSI, MACD, Volume, ATR, SMA distance, Sector RS<br>
+                                        <strong>Retrain:</strong> Every 30 days automatically
+                                    </p>
+                                </div>
+                            </div>
                         </div>
 
-                        <h6 class="mt-4">Decision Logic</h6>
+                        <h6 class="mt-4">Signal Guide</h6>
                         <ul>
-                            <li><strong>🟢 BUY:</strong> Combined score &gt; +0.35</li>
-                            <li><strong>🟡 HOLD:</strong> Score between −0.35 and +0.35</li>
-                            <li><strong>🔴 SELL:</strong> Combined score &lt; −0.35</li>
+                            <li><strong>🟢 BUY:</strong> All pillars agree — strong entry opportunity</li>
+                            <li><strong>🔴 SELL:</strong> All pillars agree — exit or short opportunity</li>
+                            <li><strong>🟡 HOLD:</strong> Score is in the middle — not strong enough either way</li>
+                            <li><strong>⚪ Mixed Signal:</strong> Indicators are split — some say up, some say down, no clear direction</li>
+                            <li><strong>⛔ Not worth taking:</strong> System wants to BUY/SELL but reward doesn't justify the risk — price too close to recent high/low</li>
+                        </ul>
+
+                        <h6 class="mt-4">Score Thresholds</h6>
+                        <ul>
+                            <li><strong>BUY:</strong> Combined score &gt; +0.35</li>
+                            <li><strong>HOLD:</strong> Score between −0.35 and +0.35</li>
+                            <li><strong>SELL:</strong> Combined score &lt; −0.35</li>
+                            <li><strong>Minimum R:R ratio:</strong> 1.5 (reward must be 1.5× the risk)</li>
+                            <li><strong>Confidence filter:</strong> At least 3 indicators must agree</li>
+                            <li><strong>Market regime:</strong> BUY signals suppressed when SPY is below its 200-day SMA</li>
                         </ul>
                     </div>
                 </div>
