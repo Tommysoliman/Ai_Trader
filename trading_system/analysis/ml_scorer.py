@@ -157,7 +157,7 @@ def _compute_features(df: pd.DataFrame, sector_etf: str = None) -> pd.DataFrame:
     sector_rs = pd.Series(0.0, index=df.index)
     if sector_etf:
         try:
-            etf_df = fetch_ohlcv_cached(sector_etf, period="2y")
+            etf_df = fetch_ohlcv_cached(sector_etf, period="5y")
             if etf_df is not None and len(etf_df) >= 20:
                 if isinstance(etf_df.columns, pd.MultiIndex):
                     etf_df = etf_df.droplevel(1, axis=1)
@@ -252,7 +252,7 @@ class MLScorer:
         Returns test accuracy or None on failure.
         """
         print(f"[ML] Training {ticker}...")
-        df = fetch_ohlcv_cached(ticker, period="2y")
+        df = fetch_ohlcv_cached(ticker, period="5y")
         if df is None or len(df) < 60:
             print(f"[ML] Insufficient data for {ticker}")
             return None
@@ -356,7 +356,7 @@ class MLScorer:
         elif prob < 0.35:
             ml_signal = "SELL"
         else:
-            ml_signal = "NO SIGNAL"
+            ml_signal = "Mixed Signal"
 
         return {
             "ml_probability": round(prob, 3),

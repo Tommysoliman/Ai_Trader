@@ -480,7 +480,7 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
 
     Extras:
       - Earnings proximity guard (7-day binary event risk)
-      - 3-indicator confidence filter (NO SIGNAL if < 3 agree)
+      - 3-indicator confidence filter (Mixed Signal if < 3 agree)
       - ML layer (Random Forest) reconciled with rule-based signal
     """
     if indicators_data is None:
@@ -497,7 +497,7 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
 
     if skip:
         return {
-            "signal": "NO SIGNAL",
+            "signal": "Mixed Signal",
             "confidence": 0.0,
             "technical": 0.0, "qualitative": 0.0, "quantitative": 0.0,
             "combined_score": 0.0,
@@ -689,27 +689,27 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
         ml_score = round((prob - 0.5) * 2, 3)   # 0.65→+0.30, 0.80→+0.60, 0.35→-0.30
 
     # ── COMBINED SCORE (4-pillar) ─────────────────────────────────────────────
-    # Weights: tech 40%, qual 25%, quant 15%, ml 20%
-    # If ML is unavailable fall back to 3-pillar weights (50/30/20)
+    # Weights: tech 35%, qual 10%, quant 20%, ml 35%
+    # If ML is unavailable fall back to 3-pillar weights (50/20/30)
     if ml_reliable:
         combined_score = (
-            (technical_score    * 0.40) +
-            (qualitative_score  * 0.25) +
-            (quantitative_score * 0.15) +
-            (ml_score           * 0.20)
+            (technical_score    * 0.35) +
+            (qualitative_score  * 0.10) +
+            (quantitative_score * 0.20) +
+            (ml_score           * 0.35)
         )
         signal_source = "4-pillar (ML included)"
     else:
         combined_score = (
             (technical_score    * 0.50) +
-            (qualitative_score  * 0.30) +
-            (quantitative_score * 0.20)
+            (qualitative_score  * 0.20) +
+            (quantitative_score * 0.30)
         )
         signal_source = "3-pillar (ML unavailable)"
 
     # ── CONFIDENCE FILTER: require 3+ indicators pointing same direction ──────
     if not enough_agreement:
-        signal     = "NO SIGNAL"
+        signal     = "Mixed Signal"
         confidence = 0.0
     elif combined_score > 0.35:
         signal     = "BUY"
@@ -723,6 +723,24 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
 
     final_signal = signal
 
+    # ── MARKET REGIME FILTER ──────────────────────────────────────────────────
+    # Suppress BUY signals when the broad market (SPY) is in a downtrend.
+    # SPY data uses the same 24h cache — no extra latency.
+    if final_signal == "BUY":
+        try:
+            spy_df = fetch_ohlcv_cached("SPY", period="1y")
+            if spy_df is not None and len(spy_df) >= 200:
+                if hasattr(spy_df.columns, "levels"):
+                    spy_df = spy_df.droplevel(1, axis=1)
+                spy_close   = spy_df["Close"].squeeze().astype(float)
+                spy_sma200  = spy_close.rolling(200).mean().iloc[-1]
+                spy_current = spy_close.iloc[-1]
+                if spy_current < spy_sma200:
+                    final_signal  = "HOLD"
+                    signal_source += " [REGIME: SPY below 200-SMA — BUY suppressed]"
+        except Exception:
+            pass
+
     # ── R:R FILTER ────────────────────────────────────────────────────────────
     entry   = indicators_data.get('current_price', 0)
     atr_val = indicators_data.get('atr', 0)
@@ -732,7 +750,7 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
         trade_levels = _apply_rr_filter(final_signal, entry, atr_val, df)
         if trade_levels is None or not trade_levels.get('sufficient'):
             rr_shown     = (trade_levels or {}).get('rr_ratio', 'N/A')
-            final_signal = "INSUFFICIENT R:R"
+            final_signal = "Not worth taking"
             signal_source += f" [R:R={rr_shown} < {MIN_RR_RATIO}]"
 
     # Confidence level string: "X/N indicators agree"
