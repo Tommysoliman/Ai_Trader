@@ -679,8 +679,8 @@ async function analyzeStock() {
         ]);
 
         // Pillar 4 — ML
-        const mlData    = d.ml ?? {};
-        const mlScore   = d.ml_score ?? 0;
+        const mlData    = a.ml ?? {};
+        const mlScore   = a.ml_score ?? 0;
         const mlProb    = mlData.ml_probability != null ? (mlData.ml_probability * 100).toFixed(0) + '%' : 'N/A';
         const mlAcc     = mlData.model_accuracy != null ? (mlData.model_accuracy * 100).toFixed(1) + '%' : 'N/A';
         const mlSignal  = mlData.ml_signal ?? 'N/A';
