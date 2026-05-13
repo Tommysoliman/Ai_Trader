@@ -330,12 +330,14 @@ def get_fundamentals(ticker: str) -> Dict:
             'debt_to_equity':   info.get('debtToEquity'),      # leverage ratio
             'analyst_target':   info.get('targetMeanPrice'),   # consensus target
             'recommendation':   info.get('recommendationKey'), # e.g. 'buy', 'hold'
+            'sector':           info.get('sector'),            # e.g. 'Technology'
         }
     except Exception as e:
         print(f"Warning: could not fetch fundamentals for {ticker}: {e}")
         return {k: None for k in [
             'earnings_growth', 'revenue_growth', 'trailing_pe', 'forward_pe',
-            'roe', 'profit_margin', 'debt_to_equity', 'analyst_target', 'recommendation'
+            'roe', 'profit_margin', 'debt_to_equity', 'analyst_target', 'recommendation',
+            'sector'
         ]}
 
 

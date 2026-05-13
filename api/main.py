@@ -8,11 +8,20 @@ warnings.filterwarnings("ignore", message="Mixing V1 models and V2 models", cate
 
 import sys
 import os
+import threading
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from flask import Flask, render_template, request, jsonify, send_file
 from flask_cors import CORS
 import json
-from datetime import datetime
+from datetime import datetime, timedelta
+import yfinance as yf
+
+try:
+    from tqdm import tqdm
+except ImportError:
+    def tqdm(iterable, **kwargs):
+        return iterable
 
 # Set up paths - use absolute paths from __file__
 API_DIR = Path(__file__).parent
@@ -26,6 +35,8 @@ sys.path.insert(0, str(PROJECT_ROOT))
 # Import trading system modules
 from analysis.sentiment import SentimentAnalyzer
 from analysis.indicators import IndicatorCalculator, get_fundamentals
+from analysis.ml_scorer import get_ml_scorer, SECTOR_ETFS, fetch_ohlcv_cached
+from analysis.earnings import EarningsChecker
 from agents.crew import CFDTradingCrew
 from utils.duckduckgo_news import search_for_question
 
@@ -65,6 +76,12 @@ STOCK_NAMES = {
 # Default config (can be empty for now)
 CONFIG = {}
 
+# ── Risk management configuration ────────────────────────────────────────────
+ACCOUNT_SIZE      = 100_000   # USD — change this to your actual account size
+ATR_STOP_MULT     = 1.5       # stop loss = entry ± (ATR × this)
+MIN_RR_RATIO      = 1.5       # signals with R:R below this are suppressed
+RISK_PCT_PER_TRADE = 0.01     # 1% of account risked per trade
+
 # Initialize Flask app with absolute paths
 TEMPLATES_DIR = PROJECT_ROOT / "templates"
 STATIC_DIR = PROJECT_ROOT / "static"
@@ -80,6 +97,12 @@ crew = CFDTradingCrew(config=CONFIG)
 
 # Store results in memory for session
 session_results = {}
+
+# Scan progress state — polled by /api/scan-progress
+_scan_progress = {"total": 0, "done": 0, "running": False, "current": ""}
+_scan_progress_lock = threading.Lock()
+
+_earnings_checker = EarningsChecker(config={"earnings": {"skip_within_days": 7}})
 
 
 # ========== HOME / DASHBOARD ==========
@@ -158,59 +181,92 @@ def analyze_stock():
 
 
 # ========== TAB 2: DAILY SCAN ==========
+
+def _analyze_one(ticker: str) -> dict:
+    """Analyze a single ticker — designed to run inside a thread pool."""
+    with _scan_progress_lock:
+        _scan_progress["current"] = ticker
+
+    try:
+        sentiment  = sentiment_analyzer.calculate_sentiment_score(ticker)
+        indicators = indicator_calc.calculate_all_indicators(ticker)
+        headlines  = sentiment_analyzer.get_top_headlines(ticker, limit=5)
+
+        if indicators is None:
+            return {"ticker": ticker, "signal": "ERROR", "error": "No market data"}
+
+        fundamentals = get_fundamentals(ticker)
+        three_pillar = calculate_three_pillars(
+            ticker=ticker,
+            indicators_data=indicators,
+            sentiment_score=sentiment,
+            headlines=headlines,
+            fundamentals=fundamentals,
+        )
+
+        return {
+            "ticker":        ticker,
+            "signal":        three_pillar.get("signal", "HOLD"),
+            "confidence":    three_pillar.get("confidence", 0),
+            "sentiment":     sentiment,
+            "technical":     three_pillar.get("technical", 0),
+            "qualitative":   three_pillar.get("qualitative", 0),
+            "quantitative":  three_pillar.get("quantitative", 0),
+            "combined_score": three_pillar.get("combined_score", 0),
+            "signal_source": three_pillar.get("signal_source", "rule-based only"),
+            "ml":            three_pillar.get("ml", {}),
+        }
+    except Exception as e:
+        return {"ticker": ticker, "signal": "ERROR", "error": str(e)}
+    finally:
+        with _scan_progress_lock:
+            _scan_progress["done"] += 1
+
+
+@app.route('/api/scan-progress')
+def scan_progress():
+    """Poll this endpoint to get live progress during a daily scan."""
+    with _scan_progress_lock:
+        return jsonify(dict(_scan_progress))
+
+
 @app.route('/api/daily-scan', methods=['POST'])
 def daily_scan():
-    """Scan multiple stocks"""
+    """Scan multiple stocks in parallel (up to 5 concurrent workers)."""
     try:
-        data = request.json
+        data    = request.json
         tickers = data.get('tickers', [])
-        
+
         if not tickers:
             return jsonify({"error": "Tickers required"}), 400
-        
+
+        # Reset progress counter
+        with _scan_progress_lock:
+            _scan_progress.update({"total": len(tickers), "done": 0,
+                                   "running": True, "current": ""})
+
         results = []
-        for ticker in tickers:
-            try:
-                sentiment = sentiment_analyzer.calculate_sentiment_score(ticker)
-                indicators = indicator_calc.calculate_all_indicators(ticker)
-                headlines = sentiment_analyzer.get_top_headlines(ticker, limit=5)
+        with ThreadPoolExecutor(max_workers=5) as pool:
+            futures = {pool.submit(_analyze_one, t): t for t in tickers}
+            for future in tqdm(as_completed(futures), total=len(futures),
+                               desc="Scanning", unit="stock"):
+                results.append(future.result())
 
-                if indicators is None:
-                    results.append({"ticker": ticker, "signal": "ERROR", "error": "No market data"})
-                    continue
+        # Sort back into original ticker order
+        order = {t: i for i, t in enumerate(tickers)}
+        results.sort(key=lambda r: order.get(r.get("ticker", ""), 999))
 
-                fundamentals = get_fundamentals(ticker)
-                three_pillar = calculate_three_pillars(
-                    ticker=ticker,
-                    indicators_data=indicators,
-                    sentiment_score=sentiment,
-                    headlines=headlines,
-                    fundamentals=fundamentals
-                )
+        with _scan_progress_lock:
+            _scan_progress.update({"running": False, "current": ""})
 
-                results.append({
-                    "ticker": ticker,
-                    "signal": three_pillar.get("signal", "HOLD"),
-                    "confidence": three_pillar.get("confidence", 0),
-                    "sentiment": sentiment,
-                    "technical": three_pillar.get("technical", 0),
-                    "qualitative": three_pillar.get("qualitative", 0),
-                    "quantitative": three_pillar.get("quantitative", 0),
-                    "combined_score": three_pillar.get("combined_score", 0)
-                })
-            except Exception as e:
-                results.append({
-                    "ticker": ticker,
-                    "error": str(e)
-                })
-        
-        # Store for tab 3
         session_results['scan_results'] = results
-        session_results['scan_time'] = datetime.now().isoformat()
-        
+        session_results['scan_time']    = datetime.now().isoformat()
+
         return jsonify({"results": results})
-    
+
     except Exception as e:
+        with _scan_progress_lock:
+            _scan_progress["running"] = False
         return jsonify({"error": str(e)}), 500
 
 
@@ -359,54 +415,208 @@ def get_framework():
 
 
 # ========== HELPER FUNCTIONS ==========
+
+def _apply_rr_filter(signal: str, entry: float, atr: float, df) -> dict | None:
+    """
+    Compute ATR-based stop loss, 20-period high/low target, and R:R ratio.
+
+    Returns a dict with trade levels and position size.
+    Returns None if inputs are invalid.
+    The 'sufficient' key is False when R:R < MIN_RR_RATIO.
+    """
+    if not entry or entry <= 0 or not atr or atr <= 0:
+        return None
+    if df is None or len(df) < 20:
+        return None
+
+    stop_dist = ATR_STOP_MULT * atr
+
+    if signal == "BUY":
+        stop_loss    = round(entry - stop_dist, 2)
+        # Resistance = highest High in last 20 periods
+        target_price = round(float(df["High"].tail(20).max()), 2)
+        risk         = entry - stop_loss
+        reward       = target_price - entry
+    elif signal == "SELL":
+        stop_loss    = round(entry + stop_dist, 2)
+        # Support = lowest Low in last 20 periods
+        target_price = round(float(df["Low"].tail(20).min()), 2)
+        risk         = stop_loss - entry
+        reward       = entry - target_price
+    else:
+        return None
+
+    if risk <= 0 or reward <= 0:
+        # Target is on the wrong side of entry (e.g. price already at 20-period high)
+        return {"sufficient": False, "rr_ratio": 0.0, "reason": "target not beyond entry"}
+
+    rr = round(reward / risk, 2)
+
+    if rr < MIN_RR_RATIO:
+        return {"sufficient": False, "rr_ratio": rr}
+
+    # Position size: (account × risk%) / risk-per-share
+    risk_amount   = ACCOUNT_SIZE * RISK_PCT_PER_TRADE
+    position_size = max(1, int(risk_amount / risk))
+
+    return {
+        "sufficient":     True,
+        "entry":          round(entry, 2),
+        "stop_loss":      stop_loss,
+        "target":         target_price,
+        "rr_ratio":       rr,
+        "risk_per_share": round(risk, 2),
+        "position_size":  position_size,
+        "account_risk_usd": round(risk_amount, 2),
+    }
+
+
 def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines, fundamentals=None):
     """
     3-Pillar scoring model (-1 to +1 per pillar):
+      Pillar 1 — TECHNICAL   : RSI, MACD, volume, SMA, ATR expansion, sector RS
+      Pillar 2 — QUALITATIVE : news sentiment
+      Pillar 3 — QUANTITATIVE: earnings/revenue growth, P/E, analyst target
 
-    Pillar 1 — TECHNICAL  : RSI, MACD cross, Volume surge, SMA alignment
-    Pillar 2 — QUALITATIVE: News sentiment score from headlines
-    Pillar 3 — QUANTITATIVE: Earnings growth, revenue growth, P/E, ROE, analyst target
+    Extras:
+      - Earnings proximity guard (7-day binary event risk)
+      - 3-indicator confidence filter (NO SIGNAL if < 3 agree)
+      - ML layer (Random Forest) reconciled with rule-based signal
     """
     if indicators_data is None:
         return {"signal": "HOLD", "confidence": 0.0, "technical": 0.0,
                 "qualitative": 0.0, "quantitative": 0.0, "combined_score": 0.0}
 
+    fundamentals = fundamentals or {}
+
+    # ── EARNINGS PROXIMITY CHECK ─────────────────────────────────────────────
+    try:
+        skip, earnings_date = _earnings_checker.check_earnings_within_threshold(ticker)
+    except Exception:
+        skip, earnings_date = False, None
+
+    if skip:
+        return {
+            "signal": "NO SIGNAL",
+            "confidence": 0.0,
+            "technical": 0.0, "qualitative": 0.0, "quantitative": 0.0,
+            "combined_score": 0.0,
+            "flag": f"BINARY EVENT RISK — earnings on {earnings_date}",
+            "signal_source": "rule-based only",
+            "ml": {},
+            "breakdown": {},
+        }
+
     # ── PILLAR 1: TECHNICAL ──────────────────────────────────────────────────
     technical_score = 0.0
+    votes = []  # +1 bullish, -1 bearish, 0 neutral — for confidence filter
 
     # RSI (weight: 0.35)
+    # Strong signals: <20 oversold, >80 overbought
+    # Momentum signals: 50-75 = trending up (bullish vote), 35-50 = trending down (bearish vote)
     rsi = indicators_data.get('rsi', 50)
-    if rsi < 30:
-        technical_score += 0.35       # strongly oversold → bullish
-    elif rsi < 45:
-        technical_score += 0.20       # mildly oversold
-    elif rsi > 70:
-        technical_score -= 0.35       # strongly overbought → bearish
-    elif rsi > 58:
-        technical_score -= 0.20       # mildly overbought
+    if rsi < 20:
+        technical_score += 0.35
+        votes.append(1)
+    elif rsi < 35:
+        technical_score += 0.20
+        votes.append(1)
+    elif rsi > 80:
+        technical_score -= 0.35
+        votes.append(-1)
+    elif rsi > 75:
+        technical_score -= 0.20
+        votes.append(-1)
+    elif rsi > 50:
+        votes.append(1)   # upward momentum — counts toward confidence filter
+    elif rsi < 50:
+        votes.append(-1)  # downward momentum
+    else:
+        votes.append(0)
 
     # MACD cross (weight: 0.25)
-    if indicators_data.get('macd_cross') == 'bullish':
+    macd = indicators_data.get('macd_cross', 'none')
+    if macd == 'bullish':
         technical_score += 0.25
-    elif indicators_data.get('macd_cross') == 'bearish':
+        votes.append(1)
+    elif macd == 'bearish':
         technical_score -= 0.25
+        votes.append(-1)
+    else:
+        votes.append(0)
 
-    # Volume surge — above 1.5× 20-day average = conviction (weight: 0.20)
+    # Volume vs 20-day average (weight: 0.20)
     volume_ratio = indicators_data.get('volume_ratio', 1.0)
     if volume_ratio >= 1.5:
-        technical_score += 0.20       # high volume confirms move
+        technical_score += 0.20
+        votes.append(1)
     elif volume_ratio <= 0.6:
-        technical_score -= 0.10       # low volume = weak conviction
-
-    # SMA alignment (weight: 0.20)
-    if indicators_data.get('golden_cross'):           # SMA-50 > SMA-200
-        technical_score += 0.10
-    if indicators_data.get('above_200sma'):           # price above long-term trend
-        technical_score += 0.10
-    if not indicators_data.get('above_200sma'):
         technical_score -= 0.10
-    if not indicators_data.get('golden_cross'):
+        votes.append(-1)
+    else:
+        votes.append(0)
+
+    # SMA alignment — golden cross weight reduced to 0.05 (lagging indicator)
+    golden_cross  = indicators_data.get('golden_cross', False)
+    above_200sma  = indicators_data.get('above_200sma', False)
+    if golden_cross:
+        technical_score += 0.05
+        votes.append(1)
+    else:
         technical_score -= 0.05
+        votes.append(-1)
+    if above_200sma:
+        technical_score += 0.10
+    else:
+        technical_score -= 0.10
+
+    # ATR expansion — current ATR > 20-day avg ATR × 1.1 = momentum confirmation (+0.10)
+    atr_expanding = False
+    df = indicators_data.get('dataframe')
+    if df is not None and len(df) >= 20:
+        try:
+            from analysis.indicators import IndicatorCalculator as _IC
+            _atr = _IC().calculate_atr(df)
+            if not _atr.iloc[-1:].isna().any():
+                atr_now = float(_atr.iloc[-1])
+                atr_avg = float(_atr.iloc[-20:].mean())
+                if atr_now > atr_avg * 1.1:
+                    technical_score += 0.10
+                    atr_expanding = True
+                    votes.append(1)
+                else:
+                    votes.append(0)
+        except Exception:
+            votes.append(0)
+    else:
+        votes.append(0)
+
+    # Sector relative strength — outperforming ETF by >2% over 20 days = +0.15
+    sector_outperforming = False
+    rs_vs_sector = None
+    sector_etf = SECTOR_ETFS.get(fundamentals.get('sector', ''))
+    if sector_etf and df is not None and len(df) >= 20:
+        try:
+            etf_df = fetch_ohlcv_cached(sector_etf, period="1y")
+            if etf_df is not None and len(etf_df) >= 20:
+                if hasattr(etf_df.columns, 'levels'):
+                    etf_df = etf_df.droplevel(1, axis=1)
+                stock_ret = float(df['Close'].iloc[-1]) / float(df['Close'].iloc[-20]) - 1
+                etf_ret   = float(etf_df['Close'].iloc[-1]) / float(etf_df['Close'].iloc[-20]) - 1
+                rs_vs_sector = round(stock_ret - etf_ret, 4)
+                if rs_vs_sector > 0.02:
+                    technical_score += 0.15
+                    sector_outperforming = True
+                    votes.append(1)
+                elif rs_vs_sector < -0.02:
+                    technical_score -= 0.10
+                    votes.append(-1)
+                else:
+                    votes.append(0)
+        except Exception:
+            votes.append(0)
+    else:
+        votes.append(0)
 
     technical_score = max(-1.0, min(1.0, technical_score))
 
@@ -415,19 +625,16 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
 
     # ── PILLAR 3: QUANTITATIVE (financial performance) ───────────────────────
     quantitative_score = 0.0
-    fundamentals = fundamentals or {}
 
-    # Earnings growth (weight: 0.35)
     eg = fundamentals.get('earnings_growth')
     if eg is not None:
         if eg > 0.20:
-            quantitative_score += 0.35    # strong growth > 20%
+            quantitative_score += 0.35
         elif eg > 0.05:
-            quantitative_score += 0.15    # moderate growth
+            quantitative_score += 0.15
         elif eg < 0:
-            quantitative_score -= 0.35    # earnings declining
+            quantitative_score -= 0.35
 
-    # Revenue growth (weight: 0.25)
     rg = fundamentals.get('revenue_growth')
     if rg is not None:
         if rg > 0.15:
@@ -437,59 +644,129 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
         elif rg < 0:
             quantitative_score -= 0.25
 
-    # P/E vs forward P/E — forward < trailing means improving earnings (weight: 0.20)
     trailing_pe = fundamentals.get('trailing_pe')
     forward_pe  = fundamentals.get('forward_pe')
     if trailing_pe and forward_pe and trailing_pe > 0 and forward_pe > 0:
         if forward_pe < trailing_pe * 0.9:
-            quantitative_score += 0.20    # earnings expected to improve
+            quantitative_score += 0.20
         elif forward_pe > trailing_pe * 1.1:
-            quantitative_score -= 0.10    # earnings expected to worsen
+            quantitative_score -= 0.10
 
-    # Analyst consensus target vs current price (weight: 0.20)
     target = fundamentals.get('analyst_target')
     price  = indicators_data.get('current_price', 0)
     if target and price and price > 0:
         upside = (target - price) / price
         if upside > 0.15:
-            quantitative_score += 0.20    # >15% analyst upside
+            quantitative_score += 0.20
         elif upside > 0.05:
             quantitative_score += 0.10
         elif upside < -0.05:
-            quantitative_score -= 0.20    # analysts see downside
+            quantitative_score -= 0.20
 
     quantitative_score = max(-1.0, min(1.0, quantitative_score))
 
-    # ── COMBINED SCORE & SIGNAL ───────────────────────────────────────────────
+    # ── COMBINED SCORE ────────────────────────────────────────────────────────
     combined_score = (technical_score * 0.5) + (qualitative_score * 0.3) + (quantitative_score * 0.2)
 
-    if combined_score > 0.35:
-        signal = "BUY"
+    # ── CONFIDENCE FILTER: require 3+ indicators pointing same direction ─────
+    bullish_votes = votes.count(1)
+    bearish_votes = votes.count(-1)
+    enough_agreement = max(bullish_votes, bearish_votes) >= 3
+
+    # ── PILLAR 4: ML (Random Forest probability → -1 to +1) ──────────────────
+    ml_result  = None
+    ml_score   = 0.0
+    ml_reliable = False
+    if df is not None:
+        try:
+            ml_result = get_ml_scorer().predict(ticker, df, sector_etf)
+        except Exception as e:
+            print(f"[ML] Prediction error for {ticker}: {e}")
+
+    if ml_result and ml_result.get('model_reliable'):
+        ml_reliable = True
+        prob     = ml_result.get('ml_probability', 0.5)
+        ml_score = round((prob - 0.5) * 2, 3)   # 0.65→+0.30, 0.80→+0.60, 0.35→-0.30
+
+    # ── COMBINED SCORE (4-pillar) ─────────────────────────────────────────────
+    # Weights: tech 40%, qual 25%, quant 15%, ml 20%
+    # If ML is unavailable fall back to 3-pillar weights (50/30/20)
+    if ml_reliable:
+        combined_score = (
+            (technical_score    * 0.40) +
+            (qualitative_score  * 0.25) +
+            (quantitative_score * 0.15) +
+            (ml_score           * 0.20)
+        )
+        signal_source = "4-pillar (ML included)"
+    else:
+        combined_score = (
+            (technical_score    * 0.50) +
+            (qualitative_score  * 0.30) +
+            (quantitative_score * 0.20)
+        )
+        signal_source = "3-pillar (ML unavailable)"
+
+    # ── CONFIDENCE FILTER: require 3+ indicators pointing same direction ──────
+    if not enough_agreement:
+        signal     = "NO SIGNAL"
+        confidence = 0.0
+    elif combined_score > 0.35:
+        signal     = "BUY"
         confidence = min(0.95, 0.60 + (combined_score - 0.35) * 0.6)
     elif combined_score < -0.35:
-        signal = "SELL"
+        signal     = "SELL"
         confidence = min(0.95, 0.60 + (abs(combined_score) - 0.35) * 0.6)
     else:
-        signal = "HOLD"
+        signal     = "HOLD"
         confidence = 0.30 + abs(combined_score)
 
+    final_signal = signal
+
+    # ── R:R FILTER ────────────────────────────────────────────────────────────
+    entry   = indicators_data.get('current_price', 0)
+    atr_val = indicators_data.get('atr', 0)
+    trade_levels = None
+
+    if final_signal in ('BUY', 'SELL'):
+        trade_levels = _apply_rr_filter(final_signal, entry, atr_val, df)
+        if trade_levels is None or not trade_levels.get('sufficient'):
+            rr_shown     = (trade_levels or {}).get('rr_ratio', 'N/A')
+            final_signal = "INSUFFICIENT R:R"
+            signal_source += f" [R:R={rr_shown} < {MIN_RR_RATIO}]"
+
+    # Confidence level string: "X/N indicators agree"
+    total_votes      = len(votes)
+    agreeing_count   = max(bullish_votes, bearish_votes)
+    confidence_level = f"{agreeing_count}/{total_votes} indicators agree"
+
     return {
-        "signal": signal,
-        "confidence": round(confidence, 3),
-        "technical": round(technical_score, 3),
-        "qualitative": round(qualitative_score, 3),
-        "quantitative": round(quantitative_score, 3),
-        "combined_score": round(combined_score, 3),
+        "signal":            final_signal,
+        "confidence":        round(confidence, 3),
+        "confidence_level":  confidence_level,
+        "technical":         round(technical_score, 3),
+        "qualitative":       round(qualitative_score, 3),
+        "quantitative":      round(quantitative_score, 3),
+        "ml_score":          round(ml_score, 3),
+        "combined_score":    round(combined_score, 3),
+        "signal_source":     signal_source,
+        "ml":                ml_result or {},
+        "trade":             trade_levels or {},
         "breakdown": {
-            "rsi": rsi,
-            "macd": indicators_data.get('macd_cross', 'none'),
-            "volume_ratio": volume_ratio,
-            "golden_cross": indicators_data.get('golden_cross', False),
-            "above_200sma": indicators_data.get('above_200sma', False),
-            "earnings_growth": eg,
-            "revenue_growth": rg,
-            "analyst_target": target,
-        }
+            "rsi":                  rsi,
+            "macd":                 macd,
+            "volume_ratio":         volume_ratio,
+            "golden_cross":         golden_cross,
+            "above_200sma":         above_200sma,
+            "atr_expanding":        atr_expanding,
+            "sector_outperforming": sector_outperforming,
+            "rs_vs_sector":         rs_vs_sector,
+            "indicator_votes":      {"bullish": bullish_votes, "bearish": bearish_votes,
+                                     "total": total_votes},
+            "earnings_growth":      eg,
+            "revenue_growth":       rg,
+            "analyst_target":       target,
+        },
     }
 
 

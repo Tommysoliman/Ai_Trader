@@ -60,3 +60,9 @@ logs/
 
 # Cache
 .cache/
+
+# ML models and data cache (large binaries, retrained per environment)
+models/
+
+# Claude Code local config
+.claude/
