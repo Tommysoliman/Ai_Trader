@@ -292,11 +292,11 @@
                             </div>
 
                             <!-- Three Pillars -->
-                            <h6 class="text-center mb-3" style="color:#90a8c0; letter-spacing:2px; font-size:0.75rem; text-transform:uppercase;">3-Pillar Breakdown</h6>
+                            <h6 class="text-center mb-3" style="color:#90a8c0; letter-spacing:2px; font-size:0.75rem; text-transform:uppercase;">4-Pillar Breakdown</h6>
                             <div class="row g-3 mb-4">
 
                                 <!-- Pillar 1: Technical -->
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <div class="pillar-card">
                                         <div class="pillar-icon">📊</div>
                                         <div class="pillar-label">Technical</div>
@@ -310,7 +310,7 @@
                                 </div>
 
                                 <!-- Pillar 2: Qualitative -->
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <div class="pillar-card">
                                         <div class="pillar-icon">📰</div>
                                         <div class="pillar-label">Qualitative</div>
@@ -324,7 +324,7 @@
                                 </div>
 
                                 <!-- Pillar 3: Quantitative -->
-                                <div class="col-md-4">
+                                <div class="col-md-3">
                                     <div class="pillar-card">
                                         <div class="pillar-icon">💹</div>
                                         <div class="pillar-label">Quantitative</div>
@@ -334,6 +334,20 @@
                                             <div class="pillar-bar-fill" id="p3-bar" style="width:50%"></div>
                                         </div>
                                         <div class="pillar-detail" id="p3-detail"></div>
+                                    </div>
+                                </div>
+
+                                <!-- Pillar 4: ML -->
+                                <div class="col-md-3">
+                                    <div class="pillar-card">
+                                        <div class="pillar-icon">🤖</div>
+                                        <div class="pillar-label">ML Model</div>
+                                        <div class="pillar-score" id="p4-score">—</div>
+                                        <div class="pillar-bar-track">
+                                            <div class="pillar-bar-center"></div>
+                                            <div class="pillar-bar-fill" id="p4-bar" style="width:50%"></div>
+                                        </div>
+                                        <div class="pillar-detail" id="p4-detail"></div>
                                     </div>
                                 </div>
                             </div>
@@ -391,6 +405,7 @@
                                             <th>Tech 📊</th>
                                             <th>Qual 📰</th>
                                             <th>Quant 💹</th>
+                                            <th>ML 🤖</th>
                                             <th>Combined</th>
                                         </tr>
                                     </thead>
@@ -426,6 +441,7 @@
                                     <th>Technical</th>
                                     <th>Qualitative</th>
                                     <th>Quantitative</th>
+                                    <th>ML 🤖</th>
                                     <th>Combined</th>
                                 </tr>
                             </thead>
@@ -662,6 +678,20 @@ async function analyzeStock() {
             `Analyst Target: ${at}`
         ]);
 
+        // Pillar 4 — ML
+        const mlData    = d.ml ?? {};
+        const mlScore   = d.ml_score ?? 0;
+        const mlProb    = mlData.ml_probability != null ? (mlData.ml_probability * 100).toFixed(0) + '%' : 'N/A';
+        const mlAcc     = mlData.model_accuracy != null ? (mlData.model_accuracy * 100).toFixed(1) + '%' : 'N/A';
+        const mlSignal  = mlData.ml_signal ?? 'N/A';
+        const mlTrained = mlData.last_trained ? mlData.last_trained.slice(0, 10) : 'N/A';
+        setPillar('p4', mlScore, [
+            `Signal: ${mlSignal}`,
+            `Probability: ${mlProb}`,
+            `Accuracy: ${mlAcc}`,
+            `Trained: ${mlTrained}`
+        ]);
+
         // Headlines
         let html = '';
         (d.headlines ?? []).slice(0, 5).forEach(h => {
@@ -772,6 +802,7 @@ async function runScan(tickers) {
                     <td class="score-cell">${scorePill(row.technical)}</td>
                     <td class="score-cell">${scorePill(row.qualitative)}</td>
                     <td class="score-cell">${scorePill(row.quantitative)}</td>
+                    <td class="score-cell">${scorePill(row.ml_score)}</td>
                     <td class="score-cell">${scorePill(row.combined_score)}</td>
                 </tr>`;
         });
@@ -802,6 +833,7 @@ function populateResultsTab(rows) {
                 <td>${scorePill(row.technical)}</td>
                 <td>${scorePill(row.qualitative)}</td>
                 <td>${scorePill(row.quantitative)}</td>
+                <td>${scorePill(row.ml_score)}</td>
                 <td>${scorePill(row.combined_score)}</td>
             </tr>`;
     });
