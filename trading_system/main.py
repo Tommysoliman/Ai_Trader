@@ -95,7 +95,7 @@ class CFDTradingSystem:
             if skip_earnings:
                 trade_card = self.trade_card_builder.build_trade_card(
                     ticker=ticker,
-                    signal="HOLD",
+                    signal="Not worth taking the risk",
                     current_price=indicators_data['current_price'],
                     atr=indicators_data['atr'],
                     indicators_data=indicators_data,
@@ -126,7 +126,7 @@ class CFDTradingSystem:
                     self.trade_card_writer.print_trade_card(trade_card)
                     
                     # Track active signals for hourly run
-                    if trade_card['signal'] in ['BUY', 'SELL']:
+                    if trade_card['signal'] in ['Buy', 'Sell']:
                         self.active_signals.append({
                             'ticker': ticker,
                             'signal': trade_card['signal'],
@@ -138,7 +138,7 @@ class CFDTradingSystem:
                     # Default HOLD if crew failed
                     trade_card = self.trade_card_builder.build_trade_card(
                         ticker=ticker,
-                        signal="HOLD",
+                        signal="Not worth taking the risk",
                         current_price=indicators_data['current_price'],
                         atr=indicators_data['atr'],
                         indicators_data=indicators_data,
@@ -153,7 +153,7 @@ class CFDTradingSystem:
                 self.logger.log(f"❌ Error processing {ticker}: {e}")
                 trade_card = self.trade_card_builder.build_trade_card(
                     ticker=ticker,
-                    signal="HOLD",
+                    signal="Not worth taking the risk",
                     current_price=indicators_data['current_price'],
                     atr=indicators_data['atr'],
                     indicators_data=indicators_data,
@@ -172,11 +172,11 @@ class CFDTradingSystem:
             self.logger.log("\n⚠️  No trade cards generated today")
         
         # Summary
-        buy_count = len([c for c in all_trade_cards if c['signal'] == 'BUY'])
-        sell_count = len([c for c in all_trade_cards if c['signal'] == 'SELL'])
-        hold_count = len([c for c in all_trade_cards if c['signal'] == 'HOLD'])
+        buy_count = len([c for c in all_trade_cards if c['signal'] == 'Buy'])
+        sell_count = len([c for c in all_trade_cards if c['signal'] == 'Sell'])
+        risk_count = len([c for c in all_trade_cards if c['signal'] == 'Not worth taking the risk'])
         
-        self.logger.log(f"\n📊 SUMMARY: {buy_count} BUY | {sell_count} SELL | {hold_count} HOLD")
+        self.logger.log(f"\n📊 SUMMARY: {buy_count} Buy | {sell_count} Sell | {risk_count} Not worth taking the risk")
         self.logger.log(f"📌 Active signals for hourly monitoring: {len(self.active_signals)}")
         
         return all_trade_cards

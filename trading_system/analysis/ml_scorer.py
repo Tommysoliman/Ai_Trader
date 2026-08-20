@@ -341,7 +341,7 @@ class MLScorer:
         if not meta.get("reliable", True):
             return {
                 "ml_probability": None,
-                "ml_signal":      "UNRELIABLE",
+                "ml_signal":      "Not worth taking the risk",
                 "model_accuracy": meta.get("accuracy"),
                 "model_reliable": False,
                 "last_trained":   meta.get("last_trained"),
@@ -352,11 +352,11 @@ class MLScorer:
         prob     = float(self._models[ticker].predict_proba(last_row)[0][1])
 
         if prob > 0.65:
-            ml_signal = "BUY"
+            ml_signal = "Buy"
         elif prob < 0.35:
-            ml_signal = "SELL"
+            ml_signal = "Sell"
         else:
-            ml_signal = "Mixed Signal"
+            ml_signal = "Not worth taking the risk"
 
         return {
             "ml_probability": round(prob, 3),

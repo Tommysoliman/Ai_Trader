@@ -61,7 +61,7 @@ earnings:
 
 # CrewAI - News Manager Confidence Threshold
 crewai:
-  min_confidence_to_validate: 65 # Below this = HOLD, skip to portfolio
+  min_confidence_to_validate: 65 # Below this = Not worth taking the risk
 
 # MiFID II Leverage Caps (per asset class)
 leverage:

@@ -9,6 +9,20 @@ from datetime import datetime
 from typing import Dict, Optional, Any
 from pathlib import Path
 
+BUY_SIGNAL = "Buy"
+SELL_SIGNAL = "Sell"
+RISK_SIGNAL = "Not worth taking the risk"
+
+
+def normalize_signal(signal: str) -> str:
+    """Map internal/legacy/LLM labels to the three public output labels."""
+    normalized = str(signal or "").strip().lower()
+    if normalized == "buy":
+        return BUY_SIGNAL
+    if normalized == "sell":
+        return SELL_SIGNAL
+    return RISK_SIGNAL
+
 class TradeCardBuilder:
     """Build and validate trade card structure"""
     
@@ -53,7 +67,7 @@ class TradeCardBuilder:
     
     def build_trade_card(self, 
                         ticker: str,
-                        signal: str,  # BUY, SELL, HOLD
+                        signal: str,  # Buy, Sell, Not worth taking the risk
                         current_price: float,
                         atr: float,
                         indicators_data: Dict,
@@ -63,25 +77,27 @@ class TradeCardBuilder:
                         skip_reason: Optional[str] = None) -> Dict:
         """Build complete trade card structure"""
         
+        signal = normalize_signal(signal)
+
         # Calculate entry zone
-        if signal == 'BUY':
+        if signal == BUY_SIGNAL:
             entry_zone_low = current_price
             entry_zone_high = current_price + (0.5 * atr)
             entry_price = (entry_zone_low + entry_zone_high) / 2
             stop_loss = entry_price - (1.5 * atr)
-        elif signal == 'SELL':
+        elif signal == SELL_SIGNAL:
             entry_zone_low = current_price - (0.5 * atr)
             entry_zone_high = current_price
             entry_price = (entry_zone_low + entry_zone_high) / 2
             stop_loss = entry_price + (1.5 * atr)
-        else:  # HOLD
+        else:  # Not worth taking the risk
             entry_zone_low = current_price
             entry_zone_high = current_price
             entry_price = current_price
             stop_loss = 0.0
         
         # Calculate take profits
-        if signal != 'HOLD':
+        if signal != RISK_SIGNAL:
             tp1, tp2 = self.calculate_take_profits(entry_price, atr)
             rr1, rr2 = self.calculate_risk_reward_ratios(entry_price, stop_loss, tp1, tp2)
         else:
@@ -90,7 +106,7 @@ class TradeCardBuilder:
         
         # Determine leverage
         leverage_max = self.get_leverage_max(ticker)
-        if signal == 'HOLD':
+        if signal == RISK_SIGNAL:
             leverage_recommended = 0
         elif confidence >= 80:
             leverage_recommended = leverage_max
@@ -144,15 +160,18 @@ class TradeCardWriter:
         """Write all trade cards to JSON file
         Returns: filepath
         """
+        for card in trade_cards:
+            card['signal'] = normalize_signal(card.get('signal'))
+
         filename = self.get_output_filename()
         filepath = self.signals_dir / filename
         
         output = {
             "run_timestamp": datetime.utcnow().isoformat() + "Z",
             "total_signals": len(trade_cards),
-            "buy_signals": len([c for c in trade_cards if c['signal'] == 'BUY']),
-            "sell_signals": len([c for c in trade_cards if c['signal'] == 'SELL']),
-            "hold_signals": len([c for c in trade_cards if c['signal'] == 'HOLD']),
+            "buy_signals": len([c for c in trade_cards if normalize_signal(c['signal']) == BUY_SIGNAL]),
+            "sell_signals": len([c for c in trade_cards if normalize_signal(c['signal']) == SELL_SIGNAL]),
+            "not_worth_taking_risk_signals": len([c for c in trade_cards if normalize_signal(c['signal']) == RISK_SIGNAL]),
             "trade_cards": trade_cards
         }
         
@@ -169,6 +188,7 @@ class TradeCardWriter:
     
     def append_trade_card(self, trade_card: Dict) -> bool:
         """Append a single trade card to today's file"""
+        trade_card['signal'] = normalize_signal(trade_card.get('signal'))
         filename = self.get_output_filename()
         filepath = self.signals_dir / filename
         
@@ -189,9 +209,9 @@ class TradeCardWriter:
             # Update counts
             trade_cards = data['trade_cards']
             data['total_signals'] = len(trade_cards)
-            data['buy_signals'] = len([c for c in trade_cards if c['signal'] == 'BUY'])
-            data['sell_signals'] = len([c for c in trade_cards if c['signal'] == 'SELL'])
-            data['hold_signals'] = len([c for c in trade_cards if c['signal'] == 'HOLD'])
+            data['buy_signals'] = len([c for c in trade_cards if normalize_signal(c['signal']) == BUY_SIGNAL])
+            data['sell_signals'] = len([c for c in trade_cards if normalize_signal(c['signal']) == SELL_SIGNAL])
+            data['not_worth_taking_risk_signals'] = len([c for c in trade_cards if normalize_signal(c['signal']) == RISK_SIGNAL])
             
             # Write back
             with open(filepath, 'w') as f:

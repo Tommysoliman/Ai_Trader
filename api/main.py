@@ -76,6 +76,20 @@ STOCK_NAMES = {
 # Default config (can be empty for now)
 CONFIG = {}
 
+BUY_OUTPUT = "Buy"
+SELL_OUTPUT = "Sell"
+RISK_OUTPUT = "Not worth taking the risk"
+
+
+def public_signal(signal):
+    """Constrain every API result to the three supported user-facing outputs."""
+    value = str(signal or "").strip().lower()
+    if value == "buy":
+        return BUY_OUTPUT
+    if value == "sell":
+        return SELL_OUTPUT
+    return RISK_OUTPUT
+
 # ── Risk management configuration ────────────────────────────────────────────
 ACCOUNT_SIZE      = 100_000   # USD — change this to your actual account size
 ATR_STOP_MULT     = 1.5       # stop loss = entry ± (ATR × this)
@@ -83,7 +97,7 @@ MIN_RR_RATIO      = 1.5       # signals with R:R below this are suppressed
 RISK_PCT_PER_TRADE = 0.01     # 1% of account risked per trade
 
 # Initialize Flask app with absolute paths
-TEMPLATES_DIR = PROJECT_ROOT / "templates"
+TEMPLATES_DIR = API_DIR / "templates"
 STATIC_DIR = PROJECT_ROOT / "static"
 
 app = Flask(__name__, template_folder=str(TEMPLATES_DIR), static_folder=str(STATIC_DIR))
@@ -193,7 +207,7 @@ def _analyze_one(ticker: str) -> dict:
         headlines  = sentiment_analyzer.get_top_headlines(ticker, limit=5)
 
         if indicators is None:
-            return {"ticker": ticker, "signal": "ERROR", "error": "No market data"}
+            return {"ticker": ticker, "signal": RISK_OUTPUT, "error": "No market data"}
 
         fundamentals = get_fundamentals(ticker)
         three_pillar = calculate_three_pillars(
@@ -206,7 +220,7 @@ def _analyze_one(ticker: str) -> dict:
 
         return {
             "ticker":        ticker,
-            "signal":        three_pillar.get("signal", "HOLD"),
+            "signal":        public_signal(three_pillar.get("signal")),
             "confidence":    three_pillar.get("confidence", 0),
             "sentiment":     sentiment,
             "technical":     three_pillar.get("technical", 0),
@@ -218,7 +232,7 @@ def _analyze_one(ticker: str) -> dict:
             "ml":            three_pillar.get("ml", {}),
         }
     except Exception as e:
-        return {"ticker": ticker, "signal": "ERROR", "error": str(e)}
+        return {"ticker": ticker, "signal": RISK_OUTPUT, "error": str(e)}
     finally:
         with _scan_progress_lock:
             _scan_progress["done"] += 1
@@ -407,9 +421,9 @@ def get_framework():
                 }
             ],
             "decision_logic": {
-                "BUY": "Combined score > 0.4",
-                "SELL": "Combined score < -0.4",
-                "HOLD": "Score between -0.4 and +0.4"
+                BUY_OUTPUT: "Combined score > 0.4",
+                SELL_OUTPUT: "Combined score < -0.4",
+                RISK_OUTPUT: "Score between -0.4 and +0.4, insufficient agreement, or excessive risk"
             }
         }
     })
@@ -485,7 +499,7 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
       - ML layer (Random Forest) reconciled with rule-based signal
     """
     if indicators_data is None:
-        return {"signal": "HOLD", "confidence": 0.0, "technical": 0.0,
+        return {"signal": RISK_OUTPUT, "confidence": 0.0, "technical": 0.0,
                 "qualitative": 0.0, "quantitative": 0.0, "combined_score": 0.0}
 
     fundamentals = fundamentals or {}
@@ -498,7 +512,7 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
 
     if skip:
         return {
-            "signal": "Mixed Signal",
+            "signal": RISK_OUTPUT,
             "confidence": 0.0,
             "technical": 0.0, "qualitative": 0.0, "quantitative": 0.0,
             "combined_score": 0.0,
@@ -751,7 +765,7 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
         trade_levels = _apply_rr_filter(final_signal, entry, atr_val, df)
         if trade_levels is None or not trade_levels.get('sufficient'):
             rr_shown     = (trade_levels or {}).get('rr_ratio', 'N/A')
-            final_signal = "Not worth taking"
+            final_signal = RISK_OUTPUT
             signal_source += f" [R:R={rr_shown} < {MIN_RR_RATIO}]"
 
     # Confidence level string: "X/N indicators agree"
@@ -760,7 +774,7 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
     confidence_level = f"{agreeing_count}/{total_votes} indicators agree"
 
     return {
-        "signal":            final_signal,
+        "signal":            public_signal(final_signal),
         "confidence":        round(confidence, 3),
         "confidence_level":  confidence_level,
         "technical":         round(technical_score, 3),
