@@ -10,10 +10,6 @@ from typing import Dict, Optional
 import json
 import re
 
-BUY_SIGNAL = "Buy"
-SELL_SIGNAL = "Sell"
-RISK_SIGNAL = "Not worth taking the risk"
-
 class CFDTradingCrew:
     """Orchestrate CrewAI agents and tasks for trading signal generation"""
     
@@ -97,12 +93,12 @@ class CFDTradingCrew:
             confidence = self._extract_confidence(synthesis_output)
             print(f"CONFIDENCE: {confidence}/100")
             
-            # CHECK: If confidence < 50, reject the risk and stop.
+            # CHECK: If confidence < 50, HOLD and STOP (lowered threshold for demo)
             if confidence < 50:
-                print(f"WARNING: Confidence {confidence} < 50, NOT WORTH TAKING THE RISK")
+                print(f"WARNING: Confidence {confidence} < 50, RECOMMENDING HOLD")
                 return {
                     "ticker": ticker,
-                    "signal": RISK_SIGNAL,
+                    "signal": "HOLD",
                     "confidence": confidence,
                     "catalyst": "Low confidence - insufficient signal strength",
                     "sentiment_score": sentiment_score,
@@ -188,7 +184,7 @@ class CFDTradingCrew:
                 print(f"OK: Trade card generated: {trade_card['signal']}")
                 return trade_card
             else:
-                print(f"WARNING: Failed to generate trade card; not worth taking the risk")
+                print(f"WARNING: Failed to generate trade card, returning HOLD")
                 return None
         
         except Exception as e:
@@ -230,13 +226,6 @@ class CFDTradingCrew:
                 json_str = json_match.group(0)
                 trade_card = json.loads(json_str)
                 trade_card['ticker'] = ticker
-                raw_signal = str(trade_card.get('signal', '')).strip().lower()
-                if raw_signal == 'buy':
-                    trade_card['signal'] = BUY_SIGNAL
-                elif raw_signal == 'sell':
-                    trade_card['signal'] = SELL_SIGNAL
-                else:
-                    trade_card['signal'] = RISK_SIGNAL
                 return trade_card
             else:
                 print("WARNING: No JSON found in portfolio output")

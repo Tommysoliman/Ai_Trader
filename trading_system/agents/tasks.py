@@ -194,21 +194,21 @@ Your task:
 1. DETERMINE SIGNAL TYPE by applying this EXACT logic:
 
    A) IF CONFIDENCE < 50:
-      SIGNAL = "Not worth taking the risk"
+      SIGNAL = "HOLD"
       (Not enough conviction in the thesis)
    
    B) IF CONFIDENCE >= 50:
       IF SENTIMENT > 0.2:
-         SIGNAL = "Buy"  (News catalyst creates bullish opportunity)
+         SIGNAL = "BUY"  (News catalyst creates bullish opportunity)
       ELSE IF SENTIMENT < -0.2:
-         SIGNAL = "Sell"  (News catalyst creates bearish opportunity)
+         SIGNAL = "SELL"  (News catalyst creates bearish opportunity)
       ELSE (sentiment between -0.2 and +0.2):
          IF RSI < 50 and MACD == "bullish":
-            SIGNAL = "Buy"
+            SIGNAL = "BUY"
          ELSE IF RSI > 50 and MACD == "bearish":
-            SIGNAL = "Sell"
+            SIGNAL = "SELL"
          ELSE:
-            SIGNAL = "Not worth taking the risk"
+            SIGNAL = "HOLD"
    
    CRITICAL INSTRUCTION: Do not deviate from this logic. Follow it exactly.
 
@@ -241,7 +241,7 @@ Your task:
 
 {{
   "ticker": "{ticker}",
-  "signal": "[Buy|Sell|Not worth taking the risk]",
+  "signal": "[BUY|SELL|HOLD]",
   "entry_zone_low": [number],
   "entry_zone_high": [number],
   "entry_price": [number],

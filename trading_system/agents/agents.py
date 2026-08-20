@@ -35,13 +35,13 @@ class CFDTradingAgents:
         """
         News Manager Agent
         Role: Synthesize news into a trade thesis
-        Goal: Assign confidence score 0-100. If below 50, output Not worth taking the risk
+        Goal: Assign confidence score 0-100. If below 50, output HOLD
         Backstory: 20 years portfolio management, macro trend expert
         Tools: DuckDuckGo live news search (for additional context if needed)
         """
         return Agent(
             role="News Manager",
-            goal="Synthesize raw news research into a clear, actionable trade thesis. Use the Search Financial News tool if you need additional context on macro conditions or sector trends. Assign a confidence score from 0-100 based on the strength of the catalyst. If confidence is below 50, recommend Not worth taking the risk.",
+            goal="Synthesize raw news research into a clear, actionable trade thesis. Use the Search Financial News tool if you need additional context on macro conditions or sector trends. Assign a confidence score from 0-100 based on the strength of the catalyst. If confidence is below 50, recommend HOLD.",
             backstory="You have 20 years of portfolio management experience and deep expertise in macro trends. You've managed billions in assets and have a proven track record of turning news-based insights into profitable positions. You search for additional context when needed before finalising your confidence score.",
             tools=[search_financial_news],
             verbose=True,
