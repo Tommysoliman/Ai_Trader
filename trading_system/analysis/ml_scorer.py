@@ -3,13 +3,15 @@ ML scoring layer — Random Forest classifier per ticker.
 
 Features: RSI, MACD histogram, volume ratio, ATR ratio,
           dist from 200/50 SMA, R:R ratio, sector RS.
-Label:    price up >2% in 10 trading days (1) or not (0).
+Labels:   Buy (>+2%), Sell (<-2%), or Not worth taking the risk
+          over the next 10 trading days.
 
 Optimisations:
   - 24-hour local OHLCV cache (avoids redundant yfinance downloads)
   - Background retraining thread (stale model used while new one trains)
   - tqdm progress for batch training
-  - Unreliable model gate: accuracy < 55% disables ML signal
+  - Purged five-fold walk-forward validation (10-session gap)
+  - Reliability gate based on balanced accuracy and macro F1
 """
 
 import json
@@ -23,7 +25,13 @@ import numpy as np
 import pandas as pd
 import yfinance as yf
 from sklearn.ensemble import RandomForestClassifier
-from sklearn.metrics import accuracy_score
+from sklearn.metrics import (
+    accuracy_score,
+    balanced_accuracy_score,
+    f1_score,
+    precision_recall_fscore_support,
+)
+from sklearn.model_selection import TimeSeriesSplit
 
 try:
     from tqdm import tqdm
@@ -35,6 +43,13 @@ except ImportError:
 MODEL_DIR = Path(__file__).parent.parent.parent / "models"
 CACHE_DIR = MODEL_DIR / "cache"
 CACHE_TTL_SECONDS = 86_400  # 24 hours
+MODEL_SCHEMA_VERSION = 2
+FORECAST_HORIZON = 10
+RETURN_THRESHOLD = 0.02
+
+BUY_CLASS = 1
+RISK_CLASS = 0
+SELL_CLASS = -1
 
 SECTOR_ETFS = {
     "Technology": "XLK",
@@ -221,6 +236,8 @@ class MLScorer:
             json.dump(self._meta, f, indent=2, default=str)
 
     def _load_model(self, ticker: str) -> bool:
+        if self._meta.get(ticker, {}).get("schema_version") != MODEL_SCHEMA_VERSION:
+            return False
         p = self._model_path(ticker)
         if p.exists():
             try:
@@ -246,10 +263,9 @@ class MLScorer:
 
     def train(self, ticker: str, sector_etf: str = None) -> float | None:
         """
-        Download 2y of data, compute features, train Random Forest (80/20 split).
-        Logs accuracy. Flags model unreliable if accuracy < 55%.
+        Train a three-class model with purged walk-forward validation.
         Uses 24h data cache to avoid redundant downloads.
-        Returns test accuracy or None on failure.
+        Returns balanced accuracy or None on failure.
         """
         print(f"[ML] Training {ticker}...")
         df = fetch_ohlcv_cached(ticker, period="2y")
@@ -259,36 +275,76 @@ class MLScorer:
 
         feat = _compute_features(df, sector_etf)
 
-        close      = df["Close"].squeeze().astype(float)
-        fwd_return = close.shift(-10) / close - 1
-        label      = (fwd_return > 0.02).astype(int)
+        close = df["Close"].squeeze().astype(float)
+        fwd_return = close.shift(-FORECAST_HORIZON) / close - 1
+        label = pd.Series(
+            np.select(
+                [fwd_return > RETURN_THRESHOLD, fwd_return < -RETURN_THRESHOLD],
+                [BUY_CLASS, SELL_CLASS],
+                default=RISK_CLASS,
+            ),
+            index=close.index,
+            name="label",
+        )
 
-        combined = feat.join(label.rename("label")).dropna().iloc[:-10]
-        if len(combined) < 50:
+        combined = feat.join(label).replace([np.inf, -np.inf], np.nan).dropna()
+        combined = combined.iloc[:-FORECAST_HORIZON]
+        if len(combined) < 120:
             print(f"[ML] Not enough clean rows for {ticker} ({len(combined)})")
             return None
 
         X     = combined[FEATURE_COLS]
         y     = combined["label"]
-        split = int(len(X) * 0.8)
-
-        model = RandomForestClassifier(
-            n_estimators=100, max_depth=5, random_state=42, n_jobs=-1
+        model_params = dict(
+            n_estimators=300,
+            max_depth=6,
+            min_samples_leaf=5,
+            class_weight="balanced_subsample",
+            random_state=42,
+            n_jobs=-1,
         )
-        model.fit(X.iloc[:split], y.iloc[:split])
-        accuracy = float(accuracy_score(y.iloc[split:], model.predict(X.iloc[split:])))
+        splitter = TimeSeriesSplit(n_splits=5, gap=FORECAST_HORIZON)
+        observed, predicted = [], []
+        for train_idx, test_idx in splitter.split(X):
+            fold_model = RandomForestClassifier(**model_params)
+            fold_model.fit(X.iloc[train_idx], y.iloc[train_idx])
+            observed.extend(y.iloc[test_idx].tolist())
+            predicted.extend(fold_model.predict(X.iloc[test_idx]).tolist())
+
+        accuracy = float(accuracy_score(observed, predicted))
+        balanced_accuracy = float(balanced_accuracy_score(observed, predicted))
+        macro_f1 = float(f1_score(observed, predicted, average="macro", zero_division=0))
+        precision, recall, _, support = precision_recall_fscore_support(
+            observed, predicted, labels=[SELL_CLASS, RISK_CLASS, BUY_CLASS], zero_division=0
+        )
+        majority_baseline = float(pd.Series(observed).value_counts(normalize=True).max())
+        reliable = balanced_accuracy >= 0.40 and macro_f1 >= 0.35
+
+        model = RandomForestClassifier(**model_params)
+        model.fit(X, y)
 
         self._save_model(ticker, model)
         self._meta[ticker] = {
             "last_trained": datetime.now().isoformat(),
             "accuracy":     round(accuracy, 4),
-            "reliable":     accuracy >= 0.55,
+            "balanced_accuracy": round(balanced_accuracy, 4),
+            "macro_f1": round(macro_f1, 4),
+            "majority_baseline": round(majority_baseline, 4),
+            "precision": dict(zip(["Sell", "Risk", "Buy"], np.round(precision, 4).tolist())),
+            "recall": dict(zip(["Sell", "Risk", "Buy"], np.round(recall, 4).tolist())),
+            "support": dict(zip(["Sell", "Risk", "Buy"], support.astype(int).tolist())),
+            "reliable":     reliable,
             "n_samples":    len(X),
+            "schema_version": MODEL_SCHEMA_VERSION,
         }
         self._save_meta()
         tag = "reliable" if accuracy >= 0.55 else "UNRELIABLE — below 55%"
-        print(f"[ML] {ticker} accuracy={accuracy:.2%} ({tag})")
-        return accuracy
+        print(
+            f"[ML] {ticker} balanced_accuracy={balanced_accuracy:.2%}, "
+            f"macro_f1={macro_f1:.2%}, raw_accuracy={accuracy:.2%} "
+            f"({'reliable' if reliable else 'UNRELIABLE'})"
+        )
+        return balanced_accuracy
 
     def train_batch(self, tickers: list, sector_etf_map: dict = None):
         """Train models for multiple tickers with tqdm progress bar."""
@@ -329,9 +385,8 @@ class MLScorer:
 
         if not model_exists:
             # First time — block and train so we can return a result
-            self.train(ticker, sector_etf)
-            if ticker not in self._models and not self._load_model(ticker):
-                return None
+            self._retrain_async(ticker, sector_etf)
+            return None
         elif self._needs_retrain(ticker):
             # Stale — retrain in background, use existing model now
             self._retrain_async(ticker, sector_etf)
@@ -341,27 +396,52 @@ class MLScorer:
         if not meta.get("reliable", True):
             return {
                 "ml_probability": None,
-                "ml_signal":      "UNRELIABLE",
+                "ml_probabilities": {},
+                "ml_score":       0.0,
+                "ml_signal":      "Not worth taking the risk",
                 "model_accuracy": meta.get("accuracy"),
+                "balanced_accuracy": meta.get("balanced_accuracy"),
+                "macro_f1":       meta.get("macro_f1"),
                 "model_reliable": False,
                 "last_trained":   meta.get("last_trained"),
             }
 
         feat     = _compute_features(df, sector_etf)
         last_row = feat.iloc[-1][FEATURE_COLS].fillna(0.0).values.reshape(1, -1)
-        prob     = float(self._models[ticker].predict_proba(last_row)[0][1])
+        model = self._models[ticker]
+        raw_probabilities = model.predict_proba(last_row)[0]
+        by_class = {
+            int(class_id): float(probability)
+            for class_id, probability in zip(model.classes_, raw_probabilities)
+        }
+        buy_probability = by_class.get(BUY_CLASS, 0.0)
+        sell_probability = by_class.get(SELL_CLASS, 0.0)
+        risk_probability = by_class.get(RISK_CLASS, 0.0)
+        ml_score = buy_probability - sell_probability
 
-        if prob > 0.65:
-            ml_signal = "BUY"
-        elif prob < 0.35:
-            ml_signal = "SELL"
+        if buy_probability >= 0.45 and buy_probability > sell_probability + 0.05:
+            ml_signal = "Buy"
+            decision_probability = buy_probability
+        elif sell_probability >= 0.45 and sell_probability > buy_probability + 0.05:
+            ml_signal = "Sell"
+            decision_probability = sell_probability
         else:
-            ml_signal = "Mixed Signal"
+            ml_signal = "Not worth taking the risk"
+            decision_probability = risk_probability
 
         return {
-            "ml_probability": round(prob, 3),
+            "ml_probability": round(decision_probability, 3),
+            "ml_probabilities": {
+                "Buy": round(buy_probability, 3),
+                "Sell": round(sell_probability, 3),
+                "Not worth taking the risk": round(risk_probability, 3),
+            },
+            "ml_score":       round(ml_score, 3),
             "ml_signal":      ml_signal,
             "model_accuracy": meta.get("accuracy"),
+            "balanced_accuracy": meta.get("balanced_accuracy"),
+            "macro_f1":       meta.get("macro_f1"),
+            "majority_baseline": meta.get("majority_baseline"),
             "model_reliable": True,
             "last_trained":   meta.get("last_trained"),
         }

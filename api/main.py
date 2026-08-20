@@ -735,18 +735,18 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
 
     if ml_result and ml_result.get('model_reliable'):
         ml_reliable = True
-        prob     = ml_result.get('ml_probability', 0.5)
-        ml_score = round((prob - 0.5) * 2, 3)   # 0.65→+0.30, 0.80→+0.60, 0.35→-0.30
+        ml_score = float(ml_result.get('ml_score', 0.0))
 
     # ── COMBINED SCORE (4-pillar) ─────────────────────────────────────────────
-    # Weights: tech 35%, qual 10%, quant 20%, ml 35%
+    # Validated ML remains a supporting input: tech 45%, news 10%,
+    # fundamentals 25%, ML 20%.
     # If ML is unavailable fall back to 3-pillar weights (50/20/30)
     if ml_reliable:
         combined_score = (
-            (technical_score    * 0.35) +
+            (technical_score    * 0.45) +
             (qualitative_score  * 0.10) +
-            (quantitative_score * 0.20) +
-            (ml_score           * 0.35)
+            (quantitative_score * 0.25) +
+            (ml_score           * 0.20)
         )
         signal_source = "4-pillar (ML included)"
     else:
