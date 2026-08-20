@@ -208,7 +208,13 @@ def _analyze_one(ticker: str) -> dict:
         headlines  = sentiment_analyzer.get_top_headlines(ticker, limit=5)
 
         if indicators is None:
-            return {"ticker": ticker, "signal": RISK_OUTPUT, "error": "No market data"}
+            return {
+                "ticker": ticker,
+                "signal": RISK_OUTPUT,
+                "status": "error",
+                "decision_reason": "Market data could not be retrieved",
+                "error": "No market data",
+            }
 
         fundamentals = get_fundamentals(ticker)
         three_pillar = calculate_three_pillars(
@@ -230,10 +236,20 @@ def _analyze_one(ticker: str) -> dict:
             "ml_score":      three_pillar.get("ml_score", 0),
             "combined_score": three_pillar.get("combined_score", 0),
             "signal_source": three_pillar.get("signal_source", "rule-based only"),
+            "status":         "ok",
+            "decision_reason": three_pillar.get("decision_reason", "Risk filters rejected the setup"),
+            "flag":           three_pillar.get("flag"),
             "ml":            three_pillar.get("ml", {}),
         }
     except Exception as e:
-        return {"ticker": ticker, "signal": RISK_OUTPUT, "error": str(e)}
+        print(f"[DAILY SCAN] {ticker} failed: {e}")
+        return {
+            "ticker": ticker,
+            "signal": RISK_OUTPUT,
+            "status": "error",
+            "decision_reason": "Analysis failed; no trade should be taken",
+            "error": str(e),
+        }
     finally:
         with _scan_progress_lock:
             _scan_progress["done"] += 1
@@ -278,7 +294,14 @@ def daily_scan():
         session_results['scan_results'] = results
         session_results['scan_time']    = datetime.now().isoformat()
 
-        return jsonify({"results": results})
+        summary = {
+            "Buy": sum(r.get("signal") == BUY_OUTPUT for r in results),
+            "Sell": sum(r.get("signal") == SELL_OUTPUT for r in results),
+            "Not worth taking the risk": sum(r.get("signal") == RISK_OUTPUT for r in results),
+            "errors": sum(r.get("status") == "error" for r in results),
+        }
+        print(f"[DAILY SCAN] completed: {summary}")
+        return jsonify({"results": results, "summary": summary})
 
     except Exception as e:
         with _scan_progress_lock:
@@ -501,7 +524,8 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
     """
     if indicators_data is None:
         return {"signal": RISK_OUTPUT, "confidence": 0.0, "technical": 0.0,
-                "qualitative": 0.0, "quantitative": 0.0, "combined_score": 0.0}
+                "qualitative": 0.0, "quantitative": 0.0, "combined_score": 0.0,
+                "decision_reason": "Market data is unavailable"}
 
     fundamentals = fundamentals or {}
 
@@ -517,6 +541,7 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
             "confidence": 0.0,
             "technical": 0.0, "qualitative": 0.0, "quantitative": 0.0,
             "combined_score": 0.0,
+            "decision_reason": f"Earnings event risk on {earnings_date}",
             "flag": f"BINARY EVENT RISK — earnings on {earnings_date}",
             "signal_source": "rule-based only",
             "ml": {},
@@ -563,12 +588,16 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
 
     # Volume vs 20-day average (weight: 0.20)
     volume_ratio = indicators_data.get('volume_ratio', 1.0)
+    price_change_pct = indicators_data.get('price_change_pct', 0.0)
     if volume_ratio >= 1.5:
-        technical_score += 0.20
-        votes.append(1)
-    elif volume_ratio <= 0.6:
-        technical_score -= 0.10
-        votes.append(-1)
+        if price_change_pct > 0:
+            technical_score += 0.20
+            votes.append(1)
+        elif price_change_pct < 0:
+            technical_score -= 0.20
+            votes.append(-1)
+        else:
+            votes.append(0)
     else:
         votes.append(0)
 
@@ -597,9 +626,15 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
                 atr_now = float(_atr.iloc[-1])
                 atr_avg = float(_atr.iloc[-20:].mean())
                 if atr_now > atr_avg * 1.1:
-                    technical_score += 0.10
                     atr_expanding = True
-                    votes.append(1)
+                    if price_change_pct > 0:
+                        technical_score += 0.10
+                        votes.append(1)
+                    elif price_change_pct < 0:
+                        technical_score -= 0.10
+                        votes.append(-1)
+                    else:
+                        votes.append(0)
                 else:
                     votes.append(0)
         except Exception:
@@ -687,7 +722,6 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
     # ── CONFIDENCE FILTER: require 3+ indicators pointing same direction ─────
     bullish_votes = votes.count(1)
     bearish_votes = votes.count(-1)
-    enough_agreement = max(bullish_votes, bearish_votes) >= 3
 
     # ── PILLAR 4: ML (Random Forest probability → -1 to +1) ──────────────────
     ml_result  = None
@@ -724,18 +758,23 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
         signal_source = "3-pillar (ML unavailable)"
 
     # ── CONFIDENCE FILTER: require 3+ indicators pointing same direction ──────
-    if not enough_agreement:
-        signal     = "Mixed Signal"
-        confidence = 0.0
-    elif combined_score > 0.35:
+    if combined_score > 0.35 and bullish_votes >= 3:
         signal     = "BUY"
         confidence = min(0.95, 0.60 + (combined_score - 0.35) * 0.6)
-    elif combined_score < -0.35:
+        decision_reason = f"Bullish score with {bullish_votes} confirming indicators"
+    elif combined_score < -0.35 and bearish_votes >= 3:
         signal     = "SELL"
         confidence = min(0.95, 0.60 + (abs(combined_score) - 0.35) * 0.6)
+        decision_reason = f"Bearish score with {bearish_votes} confirming indicators"
     else:
-        signal     = "HOLD"
+        signal     = RISK_OUTPUT
         confidence = 0.30 + abs(combined_score)
+        if abs(combined_score) <= 0.35:
+            decision_reason = f"Combined score {combined_score:.3f} lacks a strong direction"
+        elif combined_score > 0:
+            decision_reason = f"Only {bullish_votes} bullish indicators agree; 3 required"
+        else:
+            decision_reason = f"Only {bearish_votes} bearish indicators agree; 3 required"
 
     final_signal = signal
 
@@ -752,7 +791,8 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
                 spy_sma200  = spy_close.rolling(200).mean().iloc[-1]
                 spy_current = spy_close.iloc[-1]
                 if spy_current < spy_sma200:
-                    final_signal  = "HOLD"
+                    final_signal  = RISK_OUTPUT
+                    decision_reason = "Bullish setup suppressed because SPY is below its 200-day SMA"
                     signal_source += " [REGIME: SPY below 200-SMA — BUY suppressed]"
         except Exception:
             pass
@@ -767,6 +807,7 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
         if trade_levels is None or not trade_levels.get('sufficient'):
             rr_shown     = (trade_levels or {}).get('rr_ratio', 'N/A')
             final_signal = RISK_OUTPUT
+            decision_reason = f"Risk/reward {rr_shown} is below the required {MIN_RR_RATIO}"
             signal_source += f" [R:R={rr_shown} < {MIN_RR_RATIO}]"
 
     # Confidence level string: "X/N indicators agree"
@@ -784,6 +825,7 @@ def calculate_three_pillars(ticker, indicators_data, sentiment_score, headlines,
         "ml_score":          round(ml_score, 3),
         "combined_score":    round(combined_score, 3),
         "signal_source":     signal_source,
+        "decision_reason":   decision_reason,
         "ml":                ml_result or {},
         "trade":             trade_levels or {},
         "breakdown": {
